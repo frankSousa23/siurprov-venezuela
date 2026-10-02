@@ -1,0 +1,16 @@
+# SIURPROV - Docker Compose para Despliegue Local & Nube
+# Autor: Ing. Frank Sousa (frankalfonso1988@gmail.com)
+version: '3.8'
+
+services:
+  siurprov-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: siurprov-workstation
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    restart: unless-stopped

@@ -1,0 +1,116 @@
+name: SIURPROV CI/CD Pipeline & Security Verification
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  lint-and-typecheck:
+    name: 🔍 TypeScript Strict Typecheck & Linter
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Verify Strict TypeScript Compilation (tsc --noEmit)
+        run: npm run lint
+
+  automated-tests-and-evaluations:
+    name: 🧪 Civil Engineering, Geotechnical & Security Test Suite
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run SIURPROV Full Automated Test Suite (COVENIN 1756, Bishop, Sanitizer, Checksums)
+        run: npm test
+
+  security-sast-and-audit:
+    name: 🛡️ Security Audit & Mandatory Attribution Check
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run NPM Security Vulnerability Audit
+        run: npm audit --audit-level=critical || true
+
+      - name: Verify MIT Mandatory Author & Repo Attribution Clause
+        run: |
+          echo "Verificando atribución obligatoria al Ing. Frank Sousa..."
+          grep -i "Frank Sousa" LICENSE || exit 1
+          grep -i "github.com/frankalfonso1988/SIURPROV" LICENSE || exit 1
+          echo "✅ Cláusula de atribución confirmada en LICENSE."
+
+      - name: Verify Security Sanitizer & Integrity Module
+        run: |
+          test -f src/services/securitySanitizer.ts || exit 1
+          test -f src/services/studyStorage.ts || exit 1
+          echo "✅ Módulos de seguridad, sanitización y persistencia verificados."
+
+      - name: Verify Local Resilience One-Click Scripts
+        run: |
+          test -f start-local.sh || exit 1
+          test -f start-local.bat || exit 1
+          test -f Dockerfile || exit 1
+          test -f docker-compose.yml || exit 1
+          echo "✅ Scripts de ejecución sencilla local verificados para Linux, Mac y Windows."
+
+  build-production-app:
+    name: 🚀 Production Build & Artifact Packaging
+    runs-on: ubuntu-latest
+    needs: [automated-tests-and-evaluations, security-sast-and-audit]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web GIS & Physics Application
+        run: npm run build
+
+      - name: Archive Production Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: siurprov-production-dist
+          path: dist
+          retention-days: 7

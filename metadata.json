@@ -1,0 +1,6 @@
+{
+  "name": "SIURPROV - Simulador Urbano de Proyección para Venezuela",
+  "description": "Plataforma geoespacial interactiva e ingeniería civil con datos MapBiomas Venezuela para detección de urbanismos, simulación de construcciones presentes y proyectadas a través del tiempo, y evaluación multi-amenaza.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
