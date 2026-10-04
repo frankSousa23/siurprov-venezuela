@@ -26,6 +26,7 @@ import {
   SoilProfile,
   VenezuelaRegion
 } from '../types';
+import { ImportedBuildingConfig } from '../services/shakeTableEngine';
 
 const Structure3DView = lazy(() => import('./Structure3DView'));
 
@@ -36,6 +37,7 @@ interface CanvasSimulatorProps {
   scenario: MultiHazardParameters;
   simulationResult: SimulationResult;
   selectedYear: number;
+  onSendToBench?: (config: ImportedBuildingConfig) => void;
 }
 
 export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
@@ -44,7 +46,8 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
   soilProfile,
   scenario,
   simulationResult,
-  selectedYear
+  selectedYear,
+  onSendToBench
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -488,6 +491,29 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
     viewMode
   ]);
 
+  const handleExportToBench = () => {
+    const levels = typology.stories || 3;
+    const totalH = levels * Math.max(2.4, typology.storyHeightM || 3.0);
+    const estimatedMassKg = Math.round((simulationResult.designBaseShearKn * 1000) / Math.max(0.1, (scenario.earthquake.pgaG * 9.81 || 3.0)));
+    const lateralStiffnessKnM = Math.round((estimatedMassKg * Math.pow((2 * Math.PI) / Math.max(0.1, simulationResult.fundamentalPeriodT1), 2)) / 1000);
+
+    const config: ImportedBuildingConfig = {
+      source: 'simulator',
+      name: `${typology.name} (${levels}P - ${soilProfile.type})`,
+      levels: Math.min(6, Math.max(1, levels)),
+      totalHeightM: totalH,
+      estimatedMassKg: Math.max(12000, estimatedMassKg),
+      lateralStiffnessKnM: Math.max(2500, lateralStiffnessKnM),
+      soilType: (soilProfile.type as 'S1' | 'S2' | 'S3' | 'S4') || 'S2',
+      structuralType: typology.structuralSystem,
+      timestamp: Date.now()
+    };
+
+    if (onSendToBench) {
+      onSendToBench(config);
+    }
+  };
+
   return (
     <div className="flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
       {/* Simulation Header & Telemetry Bar */}
@@ -507,8 +533,8 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
           </span>
         </div>
 
-        {/* Real-time KPI tags */}
-        <div className="flex items-center gap-3">
+        {/* Real-time KPI tags & Bench quick action */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-slate-900 border border-slate-800">
             <Activity className="w-3.5 h-3.5 text-sky-400" />
             <span>Período T₁:</span>
@@ -546,6 +572,17 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
           >
             {simulationResult.ems98Grade.split(':')[0]} (DI: {simulationResult.parkAngDamageIndex})
           </div>
+
+          {onSendToBench && (
+            <button
+              onClick={handleExportToBench}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-semibold text-xs shadow-md shadow-orange-950/40 border border-amber-400/30 transition transform active:scale-95 cursor-pointer"
+              title="Transferir esta estructura calibrada al Banco de Pruebas Dinámico 3D"
+            >
+              <Flame className="w-3.5 h-3.5" />
+              <span>Probar en Banco</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -588,20 +625,34 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
           }}
         />
 
-        {/* View mode switch */}
-        <div className="absolute bottom-3 right-3 z-10 flex rounded-lg overflow-hidden border border-slate-700 bg-slate-950/90 text-[11px] font-mono">
-          {(['3d', '2d'] as const).map((m) => (
+        {/* View mode switch & Bench test button */}
+        <div className="absolute bottom-3 right-3 z-10 flex items-center gap-2">
+          {onSendToBench && (
             <button
-              key={m}
-              id={`view-mode-${m}`}
-              onClick={() => setViewMode(m)}
-              className={`px-3 py-1 transition ${
-                viewMode === m ? 'bg-sky-600 text-white font-bold' : 'text-slate-400 hover:text-slate-100'
-              }`}
+              id="export-to-bench-btn"
+              onClick={handleExportToBench}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-amber-500/50 bg-amber-600/90 hover:bg-amber-500 text-white font-semibold text-[11px] font-mono shadow-lg shadow-amber-950/50 transition active:scale-95 cursor-pointer backdrop-blur-sm"
+              title="Transferir esta estructura calibrada al Banco de Pruebas Dinámico 3D"
             >
-              {m.toUpperCase()}
+              <Flame className="w-3.5 h-3.5 animate-pulse text-amber-200" />
+              <span>Probar en Banco 3D</span>
             </button>
-          ))}
+          )}
+
+          <div className="flex rounded-lg overflow-hidden border border-slate-700 bg-slate-950/90 text-[11px] font-mono">
+            {(['3d', '2d'] as const).map((m) => (
+              <button
+                key={m}
+                id={`view-mode-${m}`}
+                onClick={() => setViewMode(m)}
+                className={`px-3 py-1 transition ${
+                  viewMode === m ? 'bg-sky-600 text-white font-bold' : 'text-slate-400 hover:text-slate-100'
+                }`}
+              >
+                {m.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
         {viewMode === '3d' && (
           <>

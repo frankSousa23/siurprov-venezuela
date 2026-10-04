@@ -51,6 +51,7 @@ import { ApiSwaggerExplorer } from './components/ApiSwaggerExplorer';
 import { StudyManagerModal } from './components/StudyManagerModal';
 import { QuickStartLocalGuideModal } from './components/QuickStartLocalGuideModal';
 import { SiurprovStudyPackage } from './services/studyStorage';
+import { ImportedBuildingConfig } from './services/shakeTableEngine';
 
 const ShakeTableBench = React.lazy(() => import('./components/ShakeTableBench'));
 
@@ -81,6 +82,35 @@ export default function App() {
     setUserPlacedBuildings(buildings);
     try {
       localStorage.setItem('siurprov_user_buildings', JSON.stringify(buildings));
+    } catch {
+      // ignore
+    }
+  };
+
+  // Estado del edificio importado al Banco de Pruebas
+  const [importedBenchBuilding, setImportedBenchBuilding] = useState<ImportedBuildingConfig | null>(() => {
+    try {
+      const saved = localStorage.getItem('siurprov_active_bench_import');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleSendToBench = (config: ImportedBuildingConfig) => {
+    setImportedBenchBuilding(config);
+    try {
+      localStorage.setItem('siurprov_active_bench_import', JSON.stringify(config));
+    } catch {
+      // ignore
+    }
+    setActiveView('bench');
+  };
+
+  const handleClearBenchImport = () => {
+    setImportedBenchBuilding(null);
+    try {
+      localStorage.removeItem('siurprov_active_bench_import');
     } catch {
       // ignore
     }
@@ -530,6 +560,7 @@ export default function App() {
               scenario={scenario}
               simulationResult={simulationResult}
               selectedYear={selectedYear}
+              onSendToBench={handleSendToBench}
             />
 
             <DisasterScenarioBuilder
@@ -555,7 +586,10 @@ export default function App() {
               </div>
             }
           >
-            <ShakeTableBench />
+            <ShakeTableBench
+              importedBuilding={importedBenchBuilding}
+              onClearImport={handleClearBenchImport}
+            />
           </React.Suspense>
         )}
 

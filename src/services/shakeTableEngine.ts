@@ -22,6 +22,58 @@ export interface ActiveRetrofits {
   baseIsolators: boolean;    // Aisladores elastoméricos de base (LRB)
 }
 
+export interface HistoricalQuakeChallenge {
+  id: string;
+  name: string;
+  year: number;
+  location: string;
+  faultSystem: string;
+  magnitudeMw: number;
+  pgaG: number;
+  dominantFrequencyHz: number;
+  waveType: 'harmonic' | 'impulse';
+  liquefactionRisk: number;
+  windSpeedKmh: number;
+  budgetUsd: number;
+  baseOccupants: number;
+  description: string;
+  historicalDamageSummary: string;
+}
+
+export interface RetrofitCostCatalog {
+  baseIsolators: number;
+  shearWalls: number;
+  xBracing: number;
+  cfrpWrap: number;
+}
+
+export interface ChallengeEvaluation {
+  challengeId: string;
+  budgetTotal: number;
+  spentUsd: number;
+  remainingBudgetUsd: number;
+  overBudget: boolean;
+  survived: boolean;
+  livesSaved: number;
+  livesAtRisk: number;
+  parkAngDamageIndex: number;
+  grade: 'A+' | 'A' | 'B' | 'C' | 'COLAPSO';
+  gradeDescription: string;
+  recommendations: string[];
+}
+
+export interface ImportedBuildingConfig {
+  source: 'simulator' | 'catalog';
+  name: string;
+  levels: number;
+  totalHeightM: number;
+  estimatedMassKg: number;
+  lateralStiffnessKnM: number;
+  soilType: 'S1' | 'S2' | 'S3' | 'S4';
+  structuralType?: string;
+  timestamp: number;
+}
+
 export type PerformanceLevel = 'IO' | 'LS' | 'CP' | 'COLLAPSE';
 
 export interface BenchTelemetry {
@@ -52,12 +104,85 @@ export class ShakeTableEngine {
   public static readonly BASE_DAMPING = 0.05;       // 5% amortiguamiento estructural
   public static readonly BASE_ULTIMATE_DRIFT = 0.022; // Umbral de colapso sin CFRP (2.2%)
 
+  // Catálogo de costos de refuerzo para gamificación ($ USD)
+  public static readonly RETROFIT_COSTS: RetrofitCostCatalog = {
+    baseIsolators: 45000,
+    shearWalls: 32000,
+    xBracing: 20000,
+    cfrpWrap: 15000
+  };
+
+  // Catálogo histórico de sismos de Venezuela (datos sismológicos y geotécnicos FUNVISIS / COVENIN 1756)
+  public static readonly HISTORICAL_CHALLENGES: HistoricalQuakeChallenge[] = [
+    {
+      id: 'cariaco-1997',
+      name: 'Terremoto de Cariaco 1997 (Mw 6.9)',
+      year: 1997,
+      location: 'Cariaco / Cumaná, Estado Sucre',
+      faultSystem: 'Falla de El Pilar (Sistema San Sebastián - El Pilar)',
+      magnitudeMw: 6.9,
+      pgaG: 0.55,
+      dominantFrequencyHz: 2.6,
+      waveType: 'impulse',
+      liquefactionRisk: 0.35,
+      windSpeedKmh: 25,
+      budgetUsd: 120000,
+      baseOccupants: 150,
+      description: 'Ruptura superficial directa de la falla de El Pilar con gran energía impulsiva de campo cercano. Colapso severo de escuelas de concreto armado con efecto de piso blando y columnas cortas.',
+      historicalDamageSummary: 'Colapso del Liceo Raimundo Martínez Centeno y Escuela Valentín Valiente; más de 73 fallecidos y miles de damnificados.'
+    },
+    {
+      id: 'caracas-1967',
+      name: 'Terremoto Cuatricentenario de Caracas 1967 (Mw 6.6)',
+      year: 1967,
+      location: 'Valle de Caracas / Litoral Central',
+      faultSystem: 'Falla de San Sebastián / Macizo del Ávila',
+      magnitudeMw: 6.6,
+      pgaG: 0.35,
+      dominantFrequencyHz: 1.15,
+      waveType: 'harmonic',
+      liquefactionRisk: 0.15,
+      windSpeedKmh: 35,
+      budgetUsd: 140000,
+      baseOccupants: 280,
+      description: 'Efecto de amplificación de cuenca aluvial profunda en Los Palos Grandes y Chacao (sedimentos de más de 200m). Ondas largas causaron resonancia destructiva selectiva en edificios de 10 a 12 niveles.',
+      historicalDamageSummary: 'Colapso total de 4 edificios modernos de concreto armado (Neverí, Palace Corvin, San José y Mijagual); 236 víctimas mortales.'
+    },
+    {
+      id: 'tocuyo-1950',
+      name: 'Terremoto de El Tocuyo 1950 (Mw 6.2)',
+      year: 1950,
+      location: 'El Tocuyo / Quíbor, Estado Lara',
+      faultSystem: 'Falla de Boconó',
+      magnitudeMw: 6.2,
+      pgaG: 0.48,
+      dominantFrequencyHz: 3.8,
+      waveType: 'impulse',
+      liquefactionRisk: 0.20,
+      windSpeedKmh: 20,
+      budgetUsd: 90000,
+      baseOccupants: 95,
+      description: 'Sismo cortical muy superficial en el graben de la Falla de Boconó. Altísimas aceleraciones iniciales de alta frecuencia que devastaron construcciones de mampostería no confinada y tapia pisada.',
+      historicalDamageSummary: 'Destrucción de más del 80% del casco histórico y patrimonio colonial de la Ciudad Madre de Venezuela.'
+    }
+  ];
+
+  public static getHistoricalChallenges(): HistoricalQuakeChallenge[] {
+    return this.HISTORICAL_CHALLENGES;
+  }
+
+  public static getRetrofitCosts(): RetrofitCostCatalog {
+    return this.RETROFIT_COSTS;
+  }
+
   /**
-   * Calcula las propiedades mecánicas efectivas del sistema según los refuerzos activos y suelo
+   * Calcula las propiedades mecánicas efectivas del sistema según los refuerzos activos, suelo
+   * y configuración de edificio importada o personalizada.
    */
   public static computeEffectiveProperties(
     retrofits: ActiveRetrofits,
-    liquefactionRatio: number = 0
+    liquefactionRatio: number = 0,
+    customBuilding?: Partial<ImportedBuildingConfig>
   ): {
     massKg: number;
     stiffnessKnM: number;
@@ -65,9 +190,20 @@ export class ShakeTableEngine {
     naturalFrequencyHz: number;
     naturalPeriodSec: number;
     ultimateDriftCapacity: number;
+    totalHeightM: number;
   } {
-    let mass = this.BASE_MASS_KG;
-    let stiffness = this.BASE_STIFFNESS_KN_M;
+    let mass = customBuilding?.estimatedMassKg && customBuilding.estimatedMassKg > 5000
+      ? customBuilding.estimatedMassKg
+      : this.BASE_MASS_KG;
+
+    let stiffness = customBuilding?.lateralStiffnessKnM && customBuilding.lateralStiffnessKnM > 1000
+      ? customBuilding.lateralStiffnessKnM
+      : this.BASE_STIFFNESS_KN_M;
+
+    const totalHeightM = customBuilding?.totalHeightM && customBuilding.totalHeightM > 2
+      ? customBuilding.totalHeightM
+      : (customBuilding?.levels ? customBuilding.levels * 3.0 : this.BASE_HEIGHT_M);
+
     let damping = this.BASE_DAMPING;
     let ultimateDrift = this.BASE_ULTIMATE_DRIFT;
 
@@ -114,7 +250,8 @@ export class ShakeTableEngine {
       dampingRatio: damping,
       naturalFrequencyHz,
       naturalPeriodSec,
-      ultimateDriftCapacity: ultimateDrift
+      ultimateDriftCapacity: ultimateDrift,
+      totalHeightM
     };
   }
 
@@ -136,15 +273,16 @@ export class ShakeTableEngine {
   public static evaluateDynamicResponse(
     params: ShakeTableParameters,
     retrofits: ActiveRetrofits,
-    timeSeconds: number = 0
+    timeSeconds: number = 0,
+    customBuilding?: Partial<ImportedBuildingConfig>
   ): BenchTelemetry {
-    const props = this.computeEffectiveProperties(retrofits, params.liquefactionRatio);
+    const props = this.computeEffectiveProperties(retrofits, params.liquefactionRatio, customBuilding);
     const unreinforcedProps = this.computeEffectiveProperties({
       shearWalls: false,
       xBracing: false,
       cfrpWrap: false,
       baseIsolators: false
-    }, 0);
+    }, 0, customBuilding);
 
     const g = 9.81; // m/s^2
     const groundAccMs2 = params.pgaG * g;
@@ -182,7 +320,7 @@ export class ShakeTableEngine {
     // Presión q = 0.5 * rho * v^2 -> Fuerza F = q * Cd * Area
     const windSpeedMs = (params.windSpeedKmh * 1000) / 3600;
     const airDensity = 1.225; // kg/m^3
-    const exposedAreaM2 = 45; // 9m x 5m
+    const exposedAreaM2 = props.totalHeightM * 5;
     const dragCoeff = 1.2;
     const windForceN = 0.5 * airDensity * Math.pow(windSpeedMs, 2) * dragCoeff * exposedAreaM2;
     const staticWindDeflectionM = windForceN / (props.stiffnessKnM * 1000);
@@ -206,12 +344,12 @@ export class ShakeTableEngine {
 
     // Deriva máxima de entrepiso Δ/h (estimada dividiendo desplazamiento máximo entre altura)
     const maxTopDispM = dynamicTopAmpM + staticWindDeflectionM;
-    const interstoryDriftRatio = maxTopDispM / this.BASE_HEIGHT_M;
+    const interstoryDriftRatio = maxTopDispM / props.totalHeightM;
 
     // Deriva equivalente en el modelo sin refuerzo para comparar reducción
     const unreinforcedMaxTopDispM = (baseDispAmpM * unreinforcedDmf * (params.waveType === 'impulse' ? 1.45 : 1.0)) +
       (windForceN / (unreinforcedProps.stiffnessKnM * 1000));
-    const unreinforcedDrift = unreinforcedMaxTopDispM / this.BASE_HEIGHT_M;
+    const unreinforcedDrift = unreinforcedMaxTopDispM / unreinforcedProps.totalHeightM;
     const reductionVsUnreinforcedPercent = Math.max(
       0,
       Math.min(95, Math.round(((unreinforcedDrift - interstoryDriftRatio) / Math.max(0.0001, unreinforcedDrift)) * 100))
@@ -269,6 +407,86 @@ export class ShakeTableEngine {
       isNearCollapse,
       coveninDriftLimitExceeded,
       reductionVsUnreinforcedPercent
+    };
+  }
+
+  /**
+   * Evalúa un Desafío Sísmico Histórico comparando costo, mitigación de daño y vidas salvadas
+   */
+  public static evaluateChallenge(
+    challenge: HistoricalQuakeChallenge,
+    retrofits: ActiveRetrofits,
+    customBuilding?: Partial<ImportedBuildingConfig>
+  ): ChallengeEvaluation {
+    const costs = this.getRetrofitCosts();
+    let spentUsd = 0;
+    if (retrofits.baseIsolators) spentUsd += costs.baseIsolators;
+    if (retrofits.shearWalls) spentUsd += costs.shearWalls;
+    if (retrofits.xBracing) spentUsd += costs.xBracing;
+    if (retrofits.cfrpWrap) spentUsd += costs.cfrpWrap;
+
+    const remainingBudgetUsd = challenge.budgetUsd - spentUsd;
+    const overBudget = remainingBudgetUsd < 0;
+
+    const params: ShakeTableParameters = {
+      pgaG: challenge.pgaG,
+      frequencyHz: challenge.dominantFrequencyHz,
+      waveType: challenge.waveType,
+      windSpeedKmh: challenge.windSpeedKmh,
+      liquefactionRatio: challenge.liquefactionRisk
+    };
+
+    const telemetry = this.evaluateDynamicResponse(params, retrofits, 0, customBuilding);
+    const survived = telemetry.performanceLevel !== 'COLLAPSE' && telemetry.parkAngDamageIndex < 1.0 && !overBudget;
+
+    let livesSaved = 0;
+    if (survived) {
+      const damageFactor = Math.max(0, 1 - (telemetry.parkAngDamageIndex * 0.45));
+      livesSaved = Math.round(challenge.baseOccupants * damageFactor);
+    } else {
+      livesSaved = Math.round(challenge.baseOccupants * 0.12);
+    }
+
+    let grade: 'A+' | 'A' | 'B' | 'C' | 'COLAPSO' = 'C';
+    let gradeDescription = '';
+    const recommendations: string[] = [];
+
+    if (overBudget) {
+      grade = 'COLAPSO';
+      gradeDescription = 'Descalificado por déficit financiero: el costo de refuerzos superó el presupuesto asignado.';
+      recommendations.push('Optimiza la combinación de refuerzos para no exceder los fondos de emergencia del reto.');
+    } else if (telemetry.performanceLevel === 'COLLAPSE' || telemetry.parkAngDamageIndex >= 1.0) {
+      grade = 'COLAPSO';
+      gradeDescription = 'Falla estructural severa: la edificación superó la deriva límite última y colapsó plásticamente.';
+      recommendations.push('Aumenta la disipación con aislamiento basal o rigidiza con muros de cortante.');
+    } else if (telemetry.parkAngDamageIndex < 0.28) {
+      grade = 'A+';
+      gradeDescription = 'Desempeño Sobresaliente: Superestructura elástica con daño residual nulo y máxima eficiencia presupuestaria.';
+    } else if (telemetry.parkAngDamageIndex < 0.50) {
+      grade = 'A';
+      gradeDescription = 'Desempeño Excelente: Cumple Ocupación Inmediata con daños menores y protección íntegra de vidas.';
+    } else if (telemetry.parkAngDamageIndex < 0.75) {
+      grade = 'B';
+      gradeDescription = 'Desempeño Aceptable: Seguridad de Vida garantizada con fisuración moderada reparable.';
+    } else {
+      grade = 'C';
+      gradeDescription = 'Prevención de Colapso al Límite: La estructura sobrevivió pero con daño irreparable permanente.';
+      recommendations.push('Se recomienda encamisado CFRP adicional para elevar la ductilidad ante sismos impulsivos.');
+    }
+
+    return {
+      challengeId: challenge.id,
+      budgetTotal: challenge.budgetUsd,
+      spentUsd,
+      remainingBudgetUsd,
+      overBudget,
+      survived,
+      livesSaved,
+      livesAtRisk: challenge.baseOccupants,
+      parkAngDamageIndex: telemetry.parkAngDamageIndex,
+      grade,
+      gradeDescription,
+      recommendations
     };
   }
 }

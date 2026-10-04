@@ -14,7 +14,7 @@ import { StructuralSimulationEngine } from '../services/structuralEngine';
 import { SecuritySanitizer } from '../services/securitySanitizer';
 import { StudyStorageService } from '../services/studyStorage';
 import { buildingGeometry, damageBand, soilColor, stressColor } from '../services/visualization';
-import { ShakeTableEngine } from '../services/shakeTableEngine';
+import { ShakeTableEngine, type ImportedBuildingConfig } from '../services/shakeTableEngine';
 import { createApp } from '../server/app';
 import type { Server } from 'http';
 
@@ -730,6 +730,170 @@ const tests: TestItem[] = [
       // El índice de daño Park-Ang con CFRP debe ser menor gracias a la mayor ductilidad
       if (withCfrp.parkAngDamageIndex >= unreinforced.parkAngDamageIndex) {
         throw new Error(`El índice de daño con CFRP (${withCfrp.parkAngDamageIndex}) debería ser inferior al modelo sin confinar (${unreinforced.parkAngDamageIndex})`);
+      }
+    }
+  },
+  {
+    id: 'TEST-22',
+    name: 'Banco de Pruebas: Integración Intermodular y Consistencia de Geometría Transferida',
+    category: 'Banco de Pruebas Dinámico',
+    run: () => {
+      // 1. Simular transferencia desde CanvasSimulator hacia el Banco Sísmico
+      const importedBuilding: ImportedBuildingConfig = {
+        source: 'simulator',
+        name: 'Edificio Residencial 5 Niveles - Suelo S2',
+        levels: 5,
+        totalHeightM: 15.0,
+        estimatedMassKg: 75000,
+        lateralStiffnessKnM: 24000,
+        soilType: 'S2',
+        structuralType: 'Porticado de Concreto Armado',
+        timestamp: Date.now()
+      };
+
+      // 2. Comprobar cálculo de propiedades efectivas para edificio importado
+      const baseProps = ShakeTableEngine.computeEffectiveProperties(
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        0,
+        importedBuilding
+      );
+
+      if (baseProps.massKg !== 75000) {
+        throw new Error(`La masa del edificio importado no se preservó: ${baseProps.massKg}kg (esperado 75000kg)`);
+      }
+      if (baseProps.totalHeightM !== 15.0) {
+        throw new Error(`La altura del edificio importado no se preservó: ${baseProps.totalHeightM}m (esperado 15m)`);
+      }
+      if (baseProps.stiffnessKnM !== 24000) {
+        throw new Error(`La rigidez lateral no coincide con el valor importado: ${baseProps.stiffnessKnM}kN/m`);
+      }
+
+      // Frecuencia teórica fn = (1 / 2pi) * sqrt(24000*1000 / 75000)
+      const expectedFn = (1 / (2 * Math.PI)) * Math.sqrt((24000 * 1000) / 75000);
+      if (Math.abs(baseProps.naturalFrequencyHz - expectedFn) > 0.05) {
+        throw new Error(`Frecuencia natural calculada inconsistente: ${baseProps.naturalFrequencyHz}Hz vs esperada ${expectedFn.toFixed(2)}Hz`);
+      }
+
+      // 3. Evaluar respuesta dinámica con y sin aislamiento para el edificio transferido
+      const params = { pgaG: 0.40, frequencyHz: 2.8, waveType: 'harmonic' as const, windSpeedKmh: 0, liquefactionRatio: 0 };
+      const unreinforced = ShakeTableEngine.evaluateDynamicResponse(
+        params,
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        0,
+        importedBuilding
+      );
+      const isolated = ShakeTableEngine.evaluateDynamicResponse(
+        params,
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: true },
+        0,
+        importedBuilding
+      );
+
+      // Aislamiento elastomérico debe mitigar más del 40% de la aceleración y la deriva
+      if (isolated.interstoryDriftRatio >= unreinforced.interstoryDriftRatio * 0.6) {
+        throw new Error('Aisladores de base en edificio importado no redujeron la deriva adecuadamente');
+      }
+
+      // 4. Comprobar tolerancia a valores vacíos (fallback a arquetipo base)
+      const fallbackProps = ShakeTableEngine.computeEffectiveProperties(
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        0,
+        {}
+      );
+      if (fallbackProps.massKg !== ShakeTableEngine.BASE_MASS_KG || fallbackProps.totalHeightM !== ShakeTableEngine.BASE_HEIGHT_M) {
+        throw new Error('El fallback por configuración vacía no devolvió los parámetros base del arquetipo');
+      }
+    }
+  },
+  {
+    id: 'TEST-23',
+    name: 'Banco de Pruebas: Catálogo de Sismos Históricos Venezolanos y Reglas de Gamificación',
+    category: 'Banco de Pruebas Dinámico',
+    run: () => {
+      // 1. Validar catálogo de sismos históricos documentados de Venezuela
+      const challenges = ShakeTableEngine.getHistoricalChallenges();
+      if (!Array.isArray(challenges) || challenges.length < 3) {
+        throw new Error(`El catálogo de retos históricos debe contener al menos 3 eventos (actuales: ${challenges?.length})`);
+      }
+
+      const cariaco = challenges.find((c) => c.id === 'cariaco-1997');
+      const caracas = challenges.find((c) => c.id === 'caracas-1967');
+      const tocuyo = challenges.find((c) => c.id === 'tocuyo-1950');
+
+      if (!cariaco || !caracas || !tocuyo) {
+        throw new Error('Faltan eventos sísmicos históricos clave (Cariaco 1997, Caracas 1967 o El Tocuyo 1950)');
+      }
+
+      // Calibraciones sismológicas históricas COVENIN / FUNVISIS
+      if (cariaco.pgaG !== 0.55 || cariaco.waveType !== 'impulse') {
+        throw new Error('Parámetros de Cariaco 1997 no corresponden a la aceleración impulsiva registrada');
+      }
+      if (caracas.dominantFrequencyHz !== 1.15 || caracas.waveType !== 'harmonic') {
+        throw new Error('Caracas 1967 debe modelar ondas largas armónicas por cuenca aluvial profunda');
+      }
+      if (tocuyo.dominantFrequencyHz !== 3.8 || tocuyo.magnitudeMw !== 6.2) {
+        throw new Error('Parámetros de El Tocuyo 1950 incorrectos');
+      }
+
+      // 2. Validar catálogo de costos de refuerzo para gamificación
+      const costs = ShakeTableEngine.getRetrofitCosts();
+      if (costs.baseIsolators <= 0 || costs.shearWalls <= 0 || costs.xBracing <= 0 || costs.cfrpWrap <= 0) {
+        throw new Error('Los costos unitarios de refuerzo deben ser valores positivos en USD');
+      }
+      if (costs.baseIsolators <= costs.shearWalls) {
+        throw new Error('El aislamiento basal LRB debe ser la tecnología de mayor costo unitario');
+      }
+
+      // 3. Evaluar reglas de gamificación: Descalificación por déficit presupuestario
+      const overBudgetChallenge: typeof cariaco = {
+        ...cariaco,
+        budgetUsd: 10000 // Presupuesto insuficiente para cualquier refuerzo
+      };
+      const overBudgetEval = ShakeTableEngine.evaluateChallenge(
+        overBudgetChallenge,
+        { baseIsolators: true, shearWalls: true, xBracing: true, cfrpWrap: true }
+      );
+      if (!overBudgetEval.overBudget) {
+        throw new Error('El motor no detectó la superación del presupuesto asignado');
+      }
+      if (overBudgetEval.grade !== 'COLAPSO') {
+        throw new Error(`Un proyecto con déficit presupuestario debe recibir calificación COLAPSO (obtenido: ${overBudgetEval.grade})`);
+      }
+      if (overBudgetEval.survived) {
+        throw new Error('Una estructura con fondos insuficientes no puede considerarse aprobada');
+      }
+
+      // 4. Evaluar estructura sin reforzar ante sismo severo (Cariaco 1997)
+      const unreinforcedEval = ShakeTableEngine.evaluateChallenge(
+        cariaco,
+        { baseIsolators: false, shearWalls: false, xBracing: false, cfrpWrap: false }
+      );
+      if (unreinforcedEval.overBudget) {
+        throw new Error('Sin refuerzos el costo gastado debe ser $0 y no superar presupuesto');
+      }
+      if (unreinforcedEval.spentUsd !== 0) {
+        throw new Error(`El gasto sin refuerzos debe ser 0 USD (actual: ${unreinforcedEval.spentUsd})`);
+      }
+      if (unreinforcedEval.grade !== 'COLAPSO' && unreinforcedEval.grade !== 'C') {
+        throw new Error(`Estructura sin refuerzo no debería obtener calificación alta ante Cariaco (obtenido: ${unreinforcedEval.grade})`);
+      }
+
+      // 5. Evaluar intervención exitosa dentro del presupuesto (Aisladores LRB + CFRP = $60,000 <= $120,000)
+      const retrofittedEval = ShakeTableEngine.evaluateChallenge(
+        cariaco,
+        { baseIsolators: true, shearWalls: false, xBracing: false, cfrpWrap: true }
+      );
+      if (retrofittedEval.overBudget) {
+        throw new Error('La combinación LRB + CFRP no debe exceder los $120,000 de presupuesto de Cariaco');
+      }
+      if (!retrofittedEval.survived) {
+        throw new Error('La combinación LRB + CFRP debe permitir la supervivencia del edificio ante Cariaco');
+      }
+      if (retrofittedEval.grade !== 'A+' && retrofittedEval.grade !== 'A') {
+        throw new Error(`Calificación insuficiente para refuerzo óptimo con aislamiento basal (obtenido: ${retrofittedEval.grade})`);
+      }
+      if (retrofittedEval.livesSaved <= unreinforcedEval.livesSaved) {
+        throw new Error(`El número de vidas salvadas (${retrofittedEval.livesSaved}) debe ser significativamente mayor al modelo colapsado (${unreinforcedEval.livesSaved})`);
       }
     }
   }
