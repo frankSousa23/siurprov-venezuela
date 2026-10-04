@@ -109,7 +109,7 @@ export class StudyStorageService {
         institution: 'Universidad Nacional Experimental Rómulo Gallegos (UNERG 2025)',
         location: 'San Juan de los Morros, Estado Guárico, Venezuela',
         officialRepo: 'https://github.com/frankalfonso1988/SIURPROV',
-        license: 'MIT License with Mandatory Author & Repository Attribution Requirement',
+        license: 'MIT License',
         createdAt: new Date().toISOString(),
         systemVersion: 'SIURPROV v1.3',
         checksum
@@ -269,7 +269,7 @@ export class StudyStorageService {
           institution: 'UNERG 2025 - San Juan de los Morros, Estado Guárico',
           location: 'Macuto & Caraballeda, Estado La Guaira',
           officialRepo: 'https://github.com/frankalfonso1988/SIURPROV',
-          license: 'MIT License (Attribution to Frank Sousa & Repo Required)',
+          license: 'MIT License',
           createdAt: '1999-12-16T00:00:00.000Z',
           systemVersion: 'SIURPROV v1.3',
           checksum: 'SIUR-VARGAS-1999'
@@ -350,7 +350,7 @@ export class StudyStorageService {
           institution: 'UNERG 2025 - San Juan de los Morros, Estado Guárico',
           location: 'Valle de Caracas (Los Palos Grandes - Altamira)',
           officialRepo: 'https://github.com/frankalfonso1988/SIURPROV',
-          license: 'MIT License (Attribution to Frank Sousa & Repo Required)',
+          license: 'MIT License',
           createdAt: '2026-03-15T00:00:00.000Z',
           systemVersion: 'SIURPROV v1.3',
           checksum: 'SIUR-CCS-2026'
@@ -408,7 +408,7 @@ export class StudyStorageService {
           institution: 'Universidad Rómulo Gallegos (UNERG 2025)',
           location: 'San Juan de los Morros, Estado Guárico',
           officialRepo: 'https://github.com/frankalfonso1988/SIURPROV',
-          license: 'MIT License (Attribution to Frank Sousa & Repo Required)',
+          license: 'MIT License',
           createdAt: '2025-10-18T00:00:00.000Z',
           systemVersion: 'SIURPROV v1.3',
           checksum: 'SIUR-UNERG-2025'
@@ -466,7 +466,7 @@ export class StudyStorageService {
           institution: 'UNERG 2025 - San Juan de los Morros, Estado Guárico',
           location: 'Cariaco y Cumaná, Estado Sucre',
           officialRepo: 'https://github.com/frankalfonso1988/SIURPROV',
-          license: 'MIT License (Attribution to Frank Sousa & Repo Required)',
+          license: 'MIT License',
           createdAt: '1997-07-09T00:00:00.000Z',
           systemVersion: 'SIURPROV v1.3',
           checksum: 'SIUR-CARIACO-1997'

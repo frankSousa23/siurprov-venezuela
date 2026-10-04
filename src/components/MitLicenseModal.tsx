@@ -23,10 +23,8 @@ export const MitLicenseModal: React.FC<MitLicenseModalProps> = ({ isOpen, onClos
 
   const mitLicenseText = `MIT License
 
-Copyright (c) 2026 Ing. Frank Sousa (frankalfonso1988@gmail.com) y Contribuidores del Proyecto SIURPROV.
-Repositorio Oficial: https://github.com/frankalfonso1988/SIURPROV
-Universidad Nacional Experimental de los Llanos Centrales Rómulo Gallegos (UNERG 2025).
-San Juan de los Morros, Estado Guárico, Venezuela.
+Copyright (c) 2026 Ing. Frank Sousa (frankalfonso1988@gmail.com) y Contribuidores de SIURPROV.
+Repositorio: https://github.com/frankalfonso1988/SIURPROV
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,25 +33,8 @@ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
-The above copyright notice, this permission notice, and the following
-ATTRIBUTION REQUIREMENT shall be included in all copies or substantial portions
-of the Software, and in all forks, distributions, or derivative works:
-
-================================================================================
-CLÁUSULA DE ATRIBUCIÓN OBLIGATORIA (RECONOCIMIENTO AL AUTOR Y REPOSITORIO):
-================================================================================
-Toda persona natural, jurídica, proyecto, estudiante, investigador o institución
-que use, ejecute, duplique, bifurque (fork), modifique o cree trabajos derivados
-a partir de este sistema (SIURPROV), deberá conservar y mostrar visiblemente:
-1. El crédito explícito al autor original:
-   Ing. Frank Sousa (frankalfonso1988@gmail.com)
-   Ingeniero en Informática (UNERG 2025) - San Juan de los Morros, Guárico, Venezuela.
-2. El enlace permanente al repositorio oficial del proyecto:
-   https://github.com/frankalfonso1988/SIURPROV
-
-Esta atribución constituye la condición y justa recompensa moral por todo el
-esfuerzo, investigación e ingeniería volcados en este proyecto libre y abierto.
-================================================================================
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -65,14 +46,15 @@ SOFTWARE.
 
 ---
 
-RECONOCIMIENTO Y ATRIBUCIÓN CIENTÍFICA A MAPBIOMAS VENEZUELA:
-El proyecto SIURPROV utiliza datos geoespaciales, clasificaciones y series
-históricas de cobertura y uso de la tierra proporcionados por la iniciativa
-MapBiomas Venezuela y la Red Amazónica de Información Socioambiental
-Georreferenciada (RAISG), a través de sus aliados institucionales y comunitarios.
-Agradecemos profundamente el aporte de estudios magisteriales y científicos
-que hacen posible la democratización del conocimiento geoespacial en beneficio
-de la gestión de riesgos y la ingeniería civil en Venezuela.`;
+NOTA DE MENCIÓN (cortesía, no es una condición adicional de la licencia):
+Se agradece que se mencione al autor original (Ing. Frank Sousa) y el
+repositorio https://github.com/frankalfonso1988/SIURPROV en trabajos derivados.
+
+RECONOCIMIENTO A MAPBIOMAS VENEZUELA:
+Este proyecto utiliza y reconoce los datos geoespaciales, clasificaciones y
+series históricas de cobertura y uso del suelo provistas por MapBiomas
+Venezuela y la Red Amazónica de Información Socioambiental Georreferenciada
+(RAISG).`;
 
   const gitBashCommands = `# Pasos para inicializar y publicar tu nuevo repositorio en GitHub:
 git init
@@ -122,14 +104,14 @@ git push -u origin main`;
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="font-extrabold text-sky-300 text-sm flex items-center gap-2">
                 <Award className="w-4 h-4 text-sky-400" />
-                Atribución al Autor y Repositorio Oficial (Recompensa Moral)
+                Mención al Autor y Repositorio Oficial
               </span>
               <span className="px-2 py-0.5 rounded-full bg-sky-900/60 text-sky-200 text-[10px] font-mono border border-sky-700/50">
                 UNERG 2025
               </span>
             </div>
             <p className="text-xs text-slate-200 leading-relaxed">
-              Como única condición y agradecimiento a la inversión de tiempo, investigación y desarrollo de este simulador abierto para Venezuela, se establece que <strong>cualquier persona, entidad o desarrollador que use, duplique, bifurque (fork) o modifique SIURPROV debe dar mención expresa a su autor original y enlazar al repositorio oficial</strong>:
+              Es una licencia MIT estándar. Como cortesía, se agradece <strong>mencionar al autor original y el repositorio oficial</strong> en trabajos derivados:
             </p>
             <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px]">
               <div>

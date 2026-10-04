@@ -2,7 +2,7 @@
 
 > **Plataforma interactiva geoespacial y de ingeniería civil para el análisis multi-amenaza, detección de urbanismos, simulación de construcciones proyectadas y existentes en el mapa a través del tiempo con datos de MapBiomas Venezuela.**
 
-![Licencia MIT](https://img.shields.io/badge/License-MIT%20(Attribution%20Required)-emerald.svg)
+![Licencia MIT](https://img.shields.io/badge/License-MIT-emerald.svg)
 ![CI/CD Status](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions%20Passing-brightgreen.svg)
 ![Security](https://img.shields.io/badge/Security-Multi--Layer%20Audit%20Compliant-blue.svg)
 ![Portabilidad](https://img.shields.io/badge/Estudios-.siurprov%20Portable-amber.svg)
@@ -84,8 +84,8 @@ El proyecto cuenta con un flujo completo de Integración y Entrega Continua (**C
    - **Cuadrante Geoespacial WGS84**: restricción estricta dentro del territorio venezolano (0.5°N a 13.5°N, -74°O a -59°O).
    - **Verificación de Cabeceras HTTP de Seguridad**: CSP, X-Content-Type-Options, X-Frame-Options, Rate Limiter para prevenir DoS.
    - **Auditoría en Vivo**: Endpoint `/api/security/audit` para inspeccionar el estado del sistema en funcionamiento.
-4. **⚖️ Verificación de Atribución Obligatoria (MIT License)**:
-   - Comprobación automatizada de que la cláusula especial de atribución al autor y repositorio permanezca intacta.
+4. **⚖️ Verificación de Mención al Autor (MIT License)**:
+   - Comprobación automatizada de que los estudios mencionen al autor y al repositorio.
 5. **🚀 Production Build & Packaging**:
    - Generación de artefactos optimizados `dist/`.
 
@@ -103,7 +103,7 @@ Los estudios pueden ser exportados desde el botón **"Estudios (.siurprov)"** en
     "title": "Tragedia de Vargas 1999 (Macuto - Caraballeda)",
     "author": "Ing. Frank Sousa (frankalfonso1988@gmail.com)",
     "officialRepo": "https://github.com/frankalfonso1988/SIURPROV",
-    "license": "MIT License with Mandatory Attribution",
+    "license": "MIT License",
     "checksum": "SIUR-VARGAS-1999"
   },
   "studyData": {
@@ -128,13 +128,13 @@ Los estudios pueden ser exportados desde el botón **"Estudios (.siurprov)"** en
 - **Alma Máter:** Universidad Nacional Experimental de los Llanos Centrales Rómulo Gallegos (UNERG)
 - **Ciudad:** San Juan de los Morros, Estado Guárico, Venezuela
 - **Repositorio Oficial:** [github.com/frankalfonso1988/SIURPROV](https://github.com/frankalfonso1988/SIURPROV)
-- **Licencia:** MIT (Open Source con Atribución Obligatoria)
+- **Licencia:** MIT (Open Source)
 - **Memoria Técnica y Arquitectura:** Consulte [`docs/MEMORIA_TECNICA.md`](docs/MEMORIA_TECNICA.md) para el informe exhaustivo de ingeniería de software, matrices legales y suite de testing.
 
 ---
 
-## 📜 Licencia & Condición Especial de Atribución
+## 📜 Licencia
 
-Este proyecto está licenciado bajo la **Licencia MIT**. 
+Este proyecto está licenciado bajo la **Licencia MIT** estándar (ver [LICENSE](LICENSE)).
 
-**Condición Especial de Reconocimiento y Atribución Obligatoria:** Toda persona, entidad o institución que use, duplique, bifurque (fork), modifique o redistribuya este software, en todo o en parte, debe mantener de manera visible y explícita la referencia al autor original (**Ing. Frank Sousa**) y al repositorio oficial (**https://github.com/frankalfonso1988/SIURPROV**) como reconocimiento y recompensa al esfuerzo volcado en la concepción y desarrollo del sistema. Consulte el archivo [LICENSE](LICENSE) para el texto completo.
+Se agradece, sin que sea requisito, mencionar al autor original (**Ing. Frank Sousa**) y el repositorio (https://github.com/frankalfonso1988/SIURPROV) en trabajos derivados.

@@ -37,9 +37,9 @@ El sistema permite auditar el territorio nacional, simular solicitaciones simult
 
 ## 3. MATRIZ LEGAL DE LICENCIAS Y PERMISOS DE USO
 
-1. **Software SIURPROV (Licencia MIT con Cláusula de Atribución Obligatoria)**:
+1. **Software SIURPROV (Licencia MIT)**:
    - Permite el uso, copia, modificación, distribución y sublicenciamiento gratuito sin regalías.
-   - **Cláusula de Atribución y Recompensa Moral**: Quienes usen, dupliquen, modifiquen o hagan bifurcaciones (forks) del proyecto deberán incluir y mostrar de forma visible la mención expresa de autoría al **Ing. Frank Sousa** (`frankalfonso1988@gmail.com`, Ingeniero en Informática, UNERG 2025, San Juan de los Morros, Guárico) y el enlace permanente al repositorio oficial: `https://github.com/frankalfonso1988/SIURPROV`.
+   - **Mención de cortesía**: se agradece mencionar al **Ing. Frank Sousa** (`frankalfonso1988@gmail.com`) y el repositorio `https://github.com/frankalfonso1988/SIURPROV` en trabajos derivados. No es una condición adicional de la licencia.
 2. **Datos Geoespaciales de MapBiomas Venezuela & RAISG (CC BY-SA 4.0)**:
    - Los rásteres multitemporales de cobertura y uso del suelo corresponden a la iniciativa científica MapBiomas Venezuela y la Red Amazónica de Información Socioambiental Georreferenciada.
    - Su utilización en SIURPROV se realiza bajo los principios de atribución científica y educación pública abierta.
@@ -188,8 +188,8 @@ Para garantizar que el software mantenga su calidad, rigurosidad física y segur
    - Sanitización de entradas contra XSS e inyecciones en `src/services/securitySanitizer.ts`.
    - Prevención de ataques de alteración de prototipo (*Prototype Pollution*) en objetos JSON.
    - Endpoint de auditoría en vivo `GET /api/security/audit` accesible desde el panel de arquitectura.
-4. **Verificación Automatizada de la Atribución Legal MIT**:
-   - El pipeline verifica que la cláusula especial de atribución al **Ing. Frank Sousa** y al repositorio `https://github.com/frankalfonso1988/SIURPROV` permanezca intacta en el archivo `LICENSE`.
+4. **Verificación Automatizada de la Mención al Autor**:
+   - El pipeline verifica que los estudios incluyan la mención al **Ing. Frank Sousa** y al repositorio `https://github.com/frankalfonso1988/SIURPROV`.
 5. **Empaquetado de Artefactos de Producción**:
    - Compilación optimizada mediante `npm run build` y empaquetado del directorio `dist/`.
 

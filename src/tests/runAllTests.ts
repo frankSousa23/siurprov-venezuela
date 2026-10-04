@@ -13,12 +13,38 @@ import { SOIL_PROFILES } from '../data/soilProfiles';
 import { StructuralSimulationEngine } from '../services/structuralEngine';
 import { SecuritySanitizer } from '../services/securitySanitizer';
 import { StudyStorageService } from '../services/studyStorage';
+import { buildingGeometry, damageBand, soilColor, stressColor } from '../services/visualization';
+import { createApp } from '../server/app';
+import type { Server } from 'http';
 
 interface TestItem {
   id: string;
   name: string;
-  category: 'COVENIN 1756' | 'Geotecnia' | 'Seguridad' | 'Estudios e Integridad' | 'Atribución y Licencia';
-  run: () => boolean | void;
+  category:
+    | 'COVENIN 1756'
+    | 'Geotecnia'
+    | 'Seguridad'
+    | 'Estudios e Integridad'
+    | 'Atribución y Licencia'
+    | 'Visualización 3D'
+    | 'Flujo API End-to-End';
+  run: () => boolean | void | Promise<void | boolean>;
+}
+
+function startEphemeralServer(options?: { rateLimitMax?: number }): Promise<{ baseUrl: string; close: () => Promise<void> }> {
+  const app = createApp(options);
+  return new Promise((resolve, reject) => {
+    const server: Server = app.listen(0, '127.0.0.1', () => {
+      const addr = server.address();
+      if (!addr || typeof addr === 'string') {
+        return reject(new Error('Dirección de servidor efímero inválida'));
+      }
+      const baseUrl = `http://127.0.0.1:${addr.port}`;
+      const close = () => new Promise<void>((res, rej) => server.close((err) => (err ? rej(err) : res())));
+      resolve({ baseUrl, close });
+    });
+    server.on('error', reject);
+  });
 }
 
 const tests: TestItem[] = [
@@ -239,7 +265,7 @@ const tests: TestItem[] = [
   // 5. Atribución Moral y Cumplimiento Legal
   {
     id: 'TEST-11',
-    name: 'Verificación de Atribución Obligatoria al Autor (Ing. Frank Sousa) y Repositorio',
+    name: 'Verificación de Mención al Autor (Ing. Frank Sousa) y Repositorio',
     category: 'Atribución y Licencia',
     run: () => {
       const catalog = StudyStorageService.getPreloadedStudies();
@@ -252,41 +278,334 @@ const tests: TestItem[] = [
         }
       }
     }
+  },
+
+  // 6. Visualización 3D y Transformación de Datos
+  {
+    id: 'TEST-12',
+    name: 'Lógica Pura de Visualización 3D: Gradientes Park-Ang, Suelos COVENIN y Geometría',
+    category: 'Visualización 3D',
+    run: () => {
+      // Bandas y gradientes cromáticos
+      if (damageBand(0.05) !== 'elastico' || stressColor(0.05) !== '#3b82f6') {
+        throw new Error('Fallo en color para régimen elástico (< 0.20)');
+      }
+      if (damageBand(0.30) !== 'microfisuras' || stressColor(0.30) !== '#eab308') {
+        throw new Error('Fallo en color para microfisuras (0.20 - 0.45)');
+      }
+      if (damageBand(0.60) !== 'rotula' || stressColor(0.60) !== '#f97316') {
+        throw new Error('Fallo en color para rótula plástica (0.45 - 0.80)');
+      }
+      if (damageBand(0.95) !== 'falla' || stressColor(0.95) !== '#ef4444') {
+        throw new Error('Fallo en color para colapso/falla (>= 0.80)');
+      }
+
+      // Paleta geotécnica de estratos
+      if (soilColor('S1') !== '#64748b' || soilColor('S4') !== '#44403c') {
+        throw new Error('Asignación errónea de color para perfiles geotécnicos S1/S4');
+      }
+
+      // Geometría volumétrica derivada
+      const geom = buildingGeometry(4, 3.0, 3, 4.0);
+      if (geom.stories !== 4 || geom.totalH !== 12.0 || geom.width !== 12.0 || geom.depth !== 8.0) {
+        throw new Error(`Dimensiones geométricas inconsistentes: ${JSON.stringify(geom)}`);
+      }
+    }
+  },
+
+  // 7. Flujo Integral de Datos, Serialización y Detección de Alteraciones (Tampering)
+  {
+    id: 'TEST-13',
+    name: 'Ciclo Integral de Estudio: Creación, Exportación Base64 y Detección de Alteraciones',
+    category: 'Estudios e Integridad',
+    run: () => {
+      const region = VENEZUELA_REGIONS[0];
+      const scenario = {
+        earthquake: { enabled: true, pgaG: 0.35, magnitudeMw: 6.8, depthKm: 12, durationSeconds: 35, distanceToFaultKm: 8 },
+        debrisFlow: { enabled: false, rainfallAccumulation24hMm: 0, soilSaturationPercent: 0, debrisVelocityMs: 0, debrisDepthM: 0, densityKgM3: 0, boulderImpactSizeM: 0 },
+        flood: { enabled: false, waterLevelM: 0, flowVelocityMs: 0, durationHours: 0, soilSaturationIncrease: 0 },
+        wind: { enabled: false, speedKmh: 0, gustFactor: 1.0 },
+        slope: { enabled: false, angleDeg: 0, cohesionKpa: 0, internalFrictionAngleDeg: 0 }
+      };
+
+      // 1. Creación con checksum
+      const pkg = StudyStorageService.createStudyPackage(
+        'Auditoría Sísmica Caracas',
+        'Estudio de resiliencia estructural',
+        region,
+        2023,
+        'porticos-nd3-sismo',
+        'S3',
+        scenario,
+        []
+      );
+
+      if (!pkg.metadata.checksum || !pkg.metadata.checksum.startsWith('SIUR-')) {
+        throw new Error(`Checksum no generado o formato inválido: ${pkg.metadata.checksum}`);
+      }
+
+      // 2. Exportación a token portátil Base64
+      const token = StudyStorageService.exportToShareableString(pkg);
+      if (typeof token !== 'string' || token.length < 50) {
+        throw new Error('Exportación Base64 produjo un token inválido o vacío.');
+      }
+
+      // 3. Importación y verificación íntegra
+      const imported = StudyStorageService.importFromShareableString(token);
+      if (!imported.success || imported.checksumStatus !== 'VERIFIED') {
+        throw new Error(`Importación de token falló o no verificó el checksum: status=${imported.checksumStatus}`);
+      }
+
+      // 4. Prueba de manipulación maliciosa (Tamper detection)
+      const tampered = JSON.parse(JSON.stringify(pkg));
+      tampered.studyData.selectedYear = 1999; // Alteración no autorizada del año histórico
+      const tamperedCheck = StudyStorageService.parseStudyFile(JSON.stringify(tampered));
+      if (tamperedCheck.checksumStatus !== 'INVALID') {
+        throw new Error('El sistema no detectó la adulteración del contenido del estudio (Checksum Status debió ser INVALID).');
+      }
+    }
+  },
+
+  // 8. Flujo API End-to-End: Diagnóstico y Auditoría de Seguridad
+  {
+    id: 'TEST-14',
+    name: 'Flujo API End-to-End: Diagnóstico (/api/health) y Cabeceras de Seguridad (/api/security/audit)',
+    category: 'Flujo API End-to-End',
+    run: async () => {
+      const { baseUrl, close } = await startEphemeralServer();
+      try {
+        // Health check
+        const healthRes = await fetch(`${baseUrl}/api/health`);
+        if (healthRes.status !== 200) {
+          throw new Error(`Endpoint /api/health respondió con código anómalo: ${healthRes.status}`);
+        }
+        const healthData = (await healthRes.json()) as any;
+        if (healthData.status !== 'online' || !healthData.offlineReady) {
+          throw new Error('Diagnóstico del sistema no indica operatividad offline o en línea.');
+        }
+
+        // Verificación de cabeceras defensivas HTTP
+        const nosniff = healthRes.headers.get('x-content-type-options');
+        const frameOptions = healthRes.headers.get('x-frame-options');
+        const csp = healthRes.headers.get('content-security-policy');
+        if (nosniff !== 'nosniff' || frameOptions !== 'SAMEORIGIN' || !csp) {
+          throw new Error(`Cabeceras de seguridad HTTP incompletas: nosniff=${nosniff}, frameOptions=${frameOptions}`);
+        }
+
+        // Security Audit
+        const auditRes = await fetch(`${baseUrl}/api/security/audit`);
+        if (auditRes.status !== 200) {
+          throw new Error(`Endpoint /api/security/audit respondió con código ${auditRes.status}`);
+        }
+        const auditData = (await auditRes.json()) as any;
+        if (auditData.status !== 'SECURE' || !Array.isArray(auditData.securityChecks) || auditData.securityChecks.length < 6) {
+          throw new Error('Informe de auditoría de seguridad no cumple los requisitos esperados.');
+        }
+      } finally {
+        await close();
+      }
+    }
+  },
+
+  // 9. Flujo API End-to-End: Validación de Paquetes de Estudio y Protección contra Prototype Pollution
+  {
+    id: 'TEST-15',
+    name: 'Flujo API End-to-End: Validación Criptográfica y Bloqueo de Inyecciones (/api/study/validate)',
+    category: 'Flujo API End-to-End',
+    run: async () => {
+      const { baseUrl, close } = await startEphemeralServer();
+      try {
+        const region = VENEZUELA_REGIONS[0];
+        const scenario = {
+          earthquake: { enabled: true, pgaG: 0.30, magnitudeMw: 6.5, depthKm: 15, durationSeconds: 30, distanceToFaultKm: 10 },
+          debrisFlow: { enabled: false, rainfallAccumulation24hMm: 0, soilSaturationPercent: 0, debrisVelocityMs: 0, debrisDepthM: 0, densityKgM3: 0, boulderImpactSizeM: 0 },
+          flood: { enabled: false, waterLevelM: 0, flowVelocityMs: 0, durationHours: 0, soilSaturationIncrease: 0 },
+          wind: { enabled: false, speedKmh: 0, gustFactor: 1.0 },
+          slope: { enabled: false, angleDeg: 0, cohesionKpa: 0, internalFrictionAngleDeg: 0 }
+        };
+        const validPkg = StudyStorageService.createStudyPackage('Estudio Válido', 'Descripción', region, 2023, 'porticos-nd3-sismo', 'S3', scenario, []);
+
+        // 1. Envío de paquete legítimo
+        const validPost = await fetch(`${baseUrl}/api/study/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(validPkg)
+        });
+        if (validPost.status !== 200) {
+          throw new Error(`Fallo al validar paquete legítimo: status=${validPost.status}`);
+        }
+        const validResult = (await validPost.json()) as any;
+        if (!validResult.valid || validResult.checksumVerified !== true) {
+          throw new Error('Validación de paquete legítimo no confirmó la correspondencia del checksum.');
+        }
+
+        // 2. Envío de paquete alterado
+        const tampered = JSON.parse(JSON.stringify(validPkg));
+        tampered.studyData.regionId = 'merida-andes'; // Manipulación
+        const tamperedPost = await fetch(`${baseUrl}/api/study/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tampered)
+        });
+        const tamperedResult = (await tamperedPost.json()) as any;
+        if (tamperedResult.checksumVerified !== false) {
+          throw new Error('La API debió indicar checksumVerified=false para el paquete alterado.');
+        }
+
+        // 3. Intento de ataque por Prototype Pollution
+        const maliciousPayload = JSON.parse('{"fileType": "SIURPROV_STUDY", "__proto__": {"polluted": true}}');
+        const attackPost = await fetch(`${baseUrl}/api/study/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(maliciousPayload)
+        });
+        if (attackPost.status !== 400) {
+          throw new Error(`La API no rechazó el ataque de Prototype Pollution (esperado 400, obtenido ${attackPost.status})`);
+        }
+      } finally {
+        await close();
+      }
+    }
+  },
+
+  // 10. Flujo API End-to-End: Consistencia Absoluta entre Endpoint (/api/simulate/full) y Motor Local
+  {
+    id: 'TEST-16',
+    name: 'Flujo API End-to-End: Consistencia Exacta entre API (/api/simulate/full) y Motor Local',
+    category: 'Flujo API End-to-End',
+    run: async () => {
+      const { baseUrl, close } = await startEphemeralServer();
+      try {
+        // Consultar catálogo
+        const catRes = await fetch(`${baseUrl}/api/catalog`);
+        if (catRes.status !== 200) {
+          throw new Error(`Error al consultar /api/catalog: ${catRes.status}`);
+        }
+        const catalog = (await catRes.json()) as any;
+        if (!Array.isArray(catalog.regions) || catalog.regions.length < 3) {
+          throw new Error('Catálogo de regiones incompleto en la API.');
+        }
+
+        // Ejecutar simulación multi-amenaza vía API
+        const testPayload = {
+          regionId: 'caracas-vargas',
+          typologyId: 'porticos-nd3-sismo',
+          soilType: 'S3',
+          year: 2023,
+          scenario: {
+            earthquake: { enabled: true, pgaG: 0.35, magnitudeMw: 6.9, depthKm: 14, durationSeconds: 40, distanceToFaultKm: 6 },
+            debrisFlow: { enabled: true, rainfallAccumulation24hMm: 220, soilSaturationPercent: 80, debrisVelocityMs: 8.5, debrisDepthM: 2.0, densityKgM3: 1950, boulderImpactSizeM: 1.2 },
+            flood: { enabled: false, waterLevelM: 0, flowVelocityMs: 0, durationHours: 0, soilSaturationIncrease: 0 },
+            wind: { enabled: false, speedKmh: 0, gustFactor: 1.0 },
+            slope: { enabled: true, angleDeg: 32, cohesionKpa: 20, internalFrictionAngleDeg: 28 }
+          }
+        };
+
+        const apiPost = await fetch(`${baseUrl}/api/simulate/full`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(testPayload)
+        });
+        if (apiPost.status !== 200) {
+          throw new Error(`Endpoint /api/simulate/full falló con código ${apiPost.status}`);
+        }
+        const apiData = (await apiPost.json()) as any;
+
+        // Ejecutar localmente con el motor idéntico
+        const region = VENEZUELA_REGIONS.find((r) => r.id === testPayload.regionId)!;
+        const typology = BUILDING_TYPOLOGIES.find((t) => t.id === testPayload.typologyId)!;
+        const soil = SOIL_PROFILES[testPayload.soilType as 'S3'];
+        const safeScenario = SecuritySanitizer.sanitizeScenario(testPayload.scenario);
+        const localResult = StructuralSimulationEngine.runSimulation(region, typology, soil, safeScenario, testPayload.year);
+
+        // Comprobación de identidad de datos (Single Source of Truth)
+        if (apiData.result.designBaseShearKn !== localResult.designBaseShearKn) {
+          throw new Error(`Discrepancia en cortante basal: API=${apiData.result.designBaseShearKn} vs Local=${localResult.designBaseShearKn}`);
+        }
+        if (apiData.result.maxStoryDriftPercent !== localResult.maxStoryDriftPercent) {
+          throw new Error(`Discrepancia en deriva de entrepiso: API=${apiData.result.maxStoryDriftPercent}% vs Local=${localResult.maxStoryDriftPercent}%`);
+        }
+        if (apiData.result.performanceLevel !== localResult.performanceLevel) {
+          throw new Error(`Discrepancia en nivel FEMA: API=${apiData.result.performanceLevel} vs Local=${localResult.performanceLevel}`);
+        }
+      } finally {
+        await close();
+      }
+    }
+  },
+
+  // 11. Flujo API End-to-End: Manejo Defensivo ante JSON Malformado y Headers de Rate Limiting
+  {
+    id: 'TEST-17',
+    name: 'Flujo API End-to-End: Manejo Defensivo de Errores y Cabeceras de Rate Limiting',
+    category: 'Flujo API End-to-End',
+    run: async () => {
+      const { baseUrl, close } = await startEphemeralServer({ rateLimitMax: 25 });
+      try {
+        // Enviar payload sintácticamente roto con encabezado application/json
+        const brokenJsonRes = await fetch(`${baseUrl}/api/study/validate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{"unclosedKey": "valor roto... '
+        });
+
+        if (brokenJsonRes.status !== 400) {
+          throw new Error(`El manejador no interceptó el JSON roto con 400 (obtenido ${brokenJsonRes.status})`);
+        }
+        const errJson = (await brokenJsonRes.json()) as any;
+        if (!errJson.error || !errJson.error.includes('inválido')) {
+          throw new Error(`Mensaje de error inesperado: ${JSON.stringify(errJson)}`);
+        }
+
+        // Verificar cabeceras de rate limiting en la respuesta
+        const rateLimitHeader = brokenJsonRes.headers.get('x-ratelimit-limit');
+        const remainingHeader = brokenJsonRes.headers.get('x-ratelimit-remaining');
+        if (rateLimitHeader !== '25' || remainingHeader === null) {
+          throw new Error(`Cabeceras de Rate Limiting ausentes o erróneas: Limit=${rateLimitHeader}, Remaining=${remainingHeader}`);
+        }
+      } finally {
+        await close();
+      }
+    }
   }
 ];
 
-// Ejecución
-console.log('======================================================================');
-console.log('🧪 SIURPROV — BATERÍA DE PRUEBAS DE INGENIERÍA, SEGURIDAD Y CI/CD');
-console.log('👤 Autor: Ing. Frank Sousa (Ingeniero en Informática, UNERG 2025)');
-console.log('📍 San Juan de los Morros, Estado Guárico, Venezuela');
-console.log('======================================================================\n');
+// Ejecución Asíncrona
+async function runSuite() {
+  console.log('======================================================================');
+  console.log('🧪 SIURPROV — BATERÍA DE PRUEBAS DE INGENIERÍA, SEGURIDAD Y CI/CD');
+  console.log('👤 Autor: Ing. Frank Sousa (Ingeniero en Informática, UNERG 2025)');
+  console.log('📍 San Juan de los Morros, Estado Guárico, Venezuela');
+  console.log('======================================================================\n');
 
-let passedCount = 0;
-let failedCount = 0;
+  let passedCount = 0;
+  let failedCount = 0;
 
-for (const t of tests) {
-  const startTime = Date.now();
-  try {
-    t.run();
-    const duration = Date.now() - startTime;
-    console.log(`✅ [PASS] [${t.category}] ${t.id}: ${t.name} (${duration}ms)`);
-    passedCount++;
-  } catch (err: any) {
-    const duration = Date.now() - startTime;
-    console.error(`❌ [FAIL] [${t.category}] ${t.id}: ${t.name} (${duration}ms)`);
-    console.error(`   Motivo: ${err.message}\n`);
-    failedCount++;
+  for (const t of tests) {
+    const startTime = Date.now();
+    try {
+      await t.run();
+      const duration = Date.now() - startTime;
+      console.log(`✅ [PASS] [${t.category}] ${t.id}: ${t.name} (${duration}ms)`);
+      passedCount++;
+    } catch (err: any) {
+      const duration = Date.now() - startTime;
+      console.error(`❌ [FAIL] [${t.category}] ${t.id}: ${t.name} (${duration}ms)`);
+      console.error(`   Motivo: ${err.message}\n`);
+      failedCount++;
+    }
+  }
+
+  console.log('\n----------------------------------------------------------------------');
+  console.log(`📊 RESULTADO FINAL: ${passedCount}/${tests.length} Pruebas Aprobadas (${((passedCount / tests.length) * 100).toFixed(1)}%)`);
+  if (failedCount > 0) {
+    console.error(`🚨 Fallaron ${failedCount} pruebas. Revise los errores antes de hacer push.`);
+    process.exit(1);
+  } else {
+    console.log('🎉 Todas las verificaciones de física, seguridad e integridad PASARON con éxito.');
+    console.log('🚀 Sistema listo para despliegue y certificación en GitHub Actions CI/CD.');
+    process.exit(0);
   }
 }
 
-console.log('\n----------------------------------------------------------------------');
-console.log(`📊 RESULTADO FINAL: ${passedCount}/${tests.length} Pruebas Aprobadas (${((passedCount / tests.length) * 100).toFixed(1)}%)`);
-if (failedCount > 0) {
-  console.error(`🚨 Fallaron ${failedCount} pruebas. Revise los errores antes de hacer push.`);
-  process.exit(1);
-} else {
-  console.log('🎉 Todas las verificaciones de física, seguridad e integridad PASARON con éxito.');
-  console.log('🚀 Sistema listo para despliegue y certificación en GitHub Actions CI/CD.');
-  process.exit(0);
-}
+runSuite();

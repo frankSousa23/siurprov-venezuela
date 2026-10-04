@@ -194,13 +194,13 @@ export class SystemAuditorService {
       testResults.push({
         id: 'TEST-LIC-01',
         category: 'Integridad y Atribución',
-        title: 'Verificación de Cláusula de Atribución Obligatoria (MIT License)',
+        title: 'Verificación de Mención al Autor (MIT License)',
         status: allAttributed ? 'PASSED' : 'FAILED',
         durationMs: Number((performance.now() - tStart).toFixed(2)),
         assertion: 'Acreditación explícita al Ing. Frank Sousa (UNERG 2025) y enlace al repositorio oficial',
         measuredValue: allAttributed ? 'Atribución Válida en Todos los Módulos' : 'Falta atribución',
         expectedRange: '100% conforme',
-        technicalNote: 'Cumple el requerimiento moral y legal de la Licencia MIT personalizada para SIURPROV.'
+        technicalNote: 'Los estudios mencionan al autor y al repositorio como cortesía (MIT estándar).'
       });
     }
 

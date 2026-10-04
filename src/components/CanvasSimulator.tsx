@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import {
   Play,
   Pause,
@@ -27,6 +27,8 @@ import {
   VenezuelaRegion
 } from '../types';
 
+const Structure3DView = lazy(() => import('./Structure3DView'));
+
 interface CanvasSimulatorProps {
   region: VenezuelaRegion;
   typology: BuildingTypology;
@@ -49,6 +51,8 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
   const [simulationSpeed, setSimulationSpeed] = useState(1.0);
   const [selectedNodeInfo, setSelectedNodeInfo] = useState<string | null>(null);
   const [showStressMesh, setShowStressMesh] = useState(true);
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('3d');
+  const [resetKey, setResetKey] = useState(0);
 
   // Animation frame state refs
   const timeRef = useRef<number>(0);
@@ -78,7 +82,7 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
   // Main rendering loop
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || viewMode !== '2d') return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -480,7 +484,8 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
     scenario,
     typology,
     soilProfile,
-    simulationResult
+    simulationResult,
+    viewMode
   ]);
 
   return (
@@ -546,11 +551,32 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
 
       {/* Main Canvas Canvas */}
       <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+        <div className={`absolute inset-0 ${viewMode === '3d' ? '' : 'invisible pointer-events-none'}`}>
+          <Suspense
+            fallback={
+              <div className="w-full h-full flex items-center justify-center text-sky-300 text-xs font-mono">
+                Cargando motor 3D...
+              </div>
+            }
+          >
+            <Structure3DView
+              typology={typology}
+              soilProfile={soilProfile}
+              scenario={scenario}
+              simulationResult={simulationResult}
+              isPlaying={isPlaying && viewMode === '3d'}
+              simulationSpeed={simulationSpeed}
+              showStressMesh={showStressMesh}
+              resetKey={resetKey}
+              onSelect={setSelectedNodeInfo}
+            />
+          </Suspense>
+        </div>
         <canvas
           ref={canvasRef}
           width={840}
           height={480}
-          className="w-full h-full object-contain cursor-crosshair"
+          className={`w-full h-full object-contain cursor-crosshair ${viewMode === '2d' ? '' : 'invisible'}`}
           onClick={() => {
             setSelectedNodeInfo(
               `Nodo Estructural Planta Baja: Cortante local V = ${(
@@ -561,6 +587,32 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
             );
           }}
         />
+
+        {/* View mode switch */}
+        <div className="absolute bottom-3 right-3 z-10 flex rounded-lg overflow-hidden border border-slate-700 bg-slate-950/90 text-[11px] font-mono">
+          {(['3d', '2d'] as const).map((m) => (
+            <button
+              key={m}
+              id={`view-mode-${m}`}
+              onClick={() => setViewMode(m)}
+              className={`px-3 py-1 transition ${
+                viewMode === m ? 'bg-sky-600 text-white font-bold' : 'text-slate-400 hover:text-slate-100'
+              }`}
+            >
+              {m.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        {viewMode === '3d' && (
+          <>
+            <div className="absolute bottom-3 left-3 text-[10px] text-slate-400 bg-slate-950/70 px-2 py-1 rounded pointer-events-none">
+              Arrastrar: orbitar · Rueda: zoom · Clic en columnas: auditar
+            </div>
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-slate-950/85 border border-sky-700 text-sky-200 text-[10px] font-mono whitespace-nowrap pointer-events-none">
+              {typology.stories} niv. · H = {(typology.stories * Math.max(2.4, typology.storyHeightM || 3)).toFixed(1)} m · T1 = {simulationResult.fundamentalPeriodT1}s
+            </div>
+          </>
+        )}
 
         {/* Dynamic Hazard Status Overlay */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none">
@@ -651,6 +703,7 @@ export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
           <button
             onClick={() => {
               timeRef.current = 0;
+              setResetKey((k) => k + 1);
             }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
           >
