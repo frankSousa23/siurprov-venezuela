@@ -52,7 +52,9 @@ import { StudyManagerModal } from './components/StudyManagerModal';
 import { QuickStartLocalGuideModal } from './components/QuickStartLocalGuideModal';
 import { SiurprovStudyPackage } from './services/studyStorage';
 
-type ActiveView = 'maps' | 'simulator' | 'mapbiomas' | 'school' | 'emergency' | 'architecture' | 'swagger';
+const ShakeTableBench = React.lazy(() => import('./components/ShakeTableBench'));
+
+type ActiveView = 'maps' | 'simulator' | 'bench' | 'mapbiomas' | 'school' | 'emergency' | 'architecture' | 'swagger';
 
 export default function App() {
   // Navigation View (Defaulting to the powerful Interactive Maps system)
@@ -385,6 +387,26 @@ export default function App() {
 
           <button
             onClick={() => {
+              setActiveView('bench');
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition shrink-0 cursor-pointer ${
+              activeView === 'bench'
+                ? 'bg-sky-600 text-white shadow-xs'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-sky-400" />
+            <span className="flex items-center gap-1.5">
+              <span>Banco de Pruebas 3D</span>
+              <span className="text-[9px] px-1.5 py-0.2 rounded bg-sky-950 text-sky-300 border border-sky-800 font-mono font-bold">
+                Mesa Sísmica
+              </span>
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
               setActiveView('mapbiomas');
               setIsMobileMenuOpen(false);
             }}
@@ -521,6 +543,20 @@ export default function App() {
               onLoadPreset={handleLoadPreset}
             />
           </div>
+        )}
+
+        {/* VIEW 1.5: Interactive 3D Shake Table Bench (Destructive Multi-Hazard Testing) */}
+        {activeView === 'bench' && (
+          <React.Suspense
+            fallback={
+              <div className="w-full py-24 flex flex-col items-center justify-center text-slate-400 gap-3">
+                <Activity className="w-8 h-8 animate-spin text-sky-400" />
+                <span className="text-sm font-medium">Iniciando Banco de Pruebas Destructivo 3D...</span>
+              </div>
+            }
+          >
+            <ShakeTableBench />
+          </React.Suspense>
         )}
 
         {/* VIEW 2: MapBiomas Venezuela Geospatial & Land Transition */}

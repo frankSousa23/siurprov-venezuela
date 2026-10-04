@@ -14,6 +14,7 @@ import { StructuralSimulationEngine } from '../services/structuralEngine';
 import { SecuritySanitizer } from '../services/securitySanitizer';
 import { StudyStorageService } from '../services/studyStorage';
 import { buildingGeometry, damageBand, soilColor, stressColor } from '../services/visualization';
+import { ShakeTableEngine } from '../services/shakeTableEngine';
 import { createApp } from '../server/app';
 import type { Server } from 'http';
 
@@ -27,7 +28,8 @@ interface TestItem {
     | 'Estudios e Integridad'
     | 'Atribución y Licencia'
     | 'Visualización 3D'
-    | 'Flujo API End-to-End';
+    | 'Flujo API End-to-End'
+    | 'Banco de Pruebas Dinámico';
   run: () => boolean | void | Promise<void | boolean>;
 }
 
@@ -565,6 +567,169 @@ const tests: TestItem[] = [
         }
       } finally {
         await close();
+      }
+    }
+  },
+  // 8. Banco de Pruebas Dinámico & Refuerzos Estructurales
+  {
+    id: 'TEST-18',
+    name: 'Banco de Pruebas: Resonancia Estructural y Amplificación Dinámica DMF',
+    category: 'Banco de Pruebas Dinámico',
+    run: () => {
+      const unreinforced = ShakeTableEngine.computeEffectiveProperties({
+        shearWalls: false,
+        xBracing: false,
+        cfrpWrap: false,
+        baseIsolators: false
+      });
+
+      const fn = unreinforced.naturalFrequencyHz;
+      // Probar en frecuencia alejada (f = 0.5 Hz) vs frecuencia cuasi-resonante (f ≈ fn)
+      const dmfOffResonance = ShakeTableEngine.calculateDMF(0.5, fn, unreinforced.dampingRatio);
+      const dmfResonance = ShakeTableEngine.calculateDMF(fn, fn, unreinforced.dampingRatio);
+
+      if (dmfResonance <= dmfOffResonance) {
+        throw new Error(`El DMF en resonancia (${dmfResonance}) debe ser superior al DMF fuera de resonancia (${dmfOffResonance})`);
+      }
+      if (dmfResonance < 8.0) {
+        throw new Error(`Para amortiguamiento del 5%, el DMF pico en resonancia debe ser cercano a 10 (obtenido ${dmfResonance})`);
+      }
+
+      // Evaluar respuesta completa en resonancia
+      const telemetry = ShakeTableEngine.evaluateDynamicResponse(
+        { pgaG: 0.35, frequencyHz: fn, waveType: 'harmonic', windSpeedKmh: 0, liquefactionRatio: 0 },
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        1.0
+      );
+
+      if (!telemetry.isResonant) {
+        throw new Error('El detector de resonancia no se activó a f = fn');
+      }
+      if (!telemetry.coveninDriftLimitExceeded) {
+        throw new Error('A 0.35g en resonancia pura, la deriva debe sobrepasar el límite elástico de COVENIN 1756');
+      }
+    }
+  },
+  {
+    id: 'TEST-19',
+    name: 'Banco de Pruebas: Desacoplamiento y Mitigación por Aislamiento Basal (LRB)',
+    category: 'Banco de Pruebas Dinámico',
+    run: () => {
+      const fixedParams = { pgaG: 0.45, frequencyHz: 2.5, waveType: 'harmonic' as const, windSpeedKmh: 0, liquefactionRatio: 0 };
+      const unreinforced = ShakeTableEngine.evaluateDynamicResponse(
+        fixedParams,
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        1.5
+      );
+      const isolated = ShakeTableEngine.evaluateDynamicResponse(
+        fixedParams,
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: true },
+        1.5
+      );
+
+      // Aislador elastomérico debe reducir la deriva y la aceleración en el tope en más del 50%
+      const driftReduction = (unreinforced.interstoryDriftRatio - isolated.interstoryDriftRatio) / unreinforced.interstoryDriftRatio;
+      if (driftReduction < 0.50) {
+        throw new Error(`La reducción de deriva con aisladores LRB fue insuficiente: ${(driftReduction * 100).toFixed(1)}% (esperado > 50%)`);
+      }
+      if (isolated.topAccelerationG >= unreinforced.topAccelerationG) {
+        throw new Error(`La aceleración en el tope no disminuyó con aisladores (Sin aislar: ${unreinforced.topAccelerationG}g vs Aislado: ${isolated.topAccelerationG}g)`);
+      }
+      if (isolated.reductionVsUnreinforcedPercent < 50) {
+        throw new Error(`La telemetría de reducción porcentual es errónea: ${isolated.reductionVsUnreinforcedPercent}%`);
+      }
+    }
+  },
+  {
+    id: 'TEST-20',
+    name: 'Banco de Pruebas: Rigidización por Muros de Cortante y Arriostramientos en X',
+    category: 'Banco de Pruebas Dinámico',
+    run: () => {
+      const baseProps = ShakeTableEngine.computeEffectiveProperties({
+        shearWalls: false,
+        xBracing: false,
+        cfrpWrap: false,
+        baseIsolators: false
+      });
+      const wallProps = ShakeTableEngine.computeEffectiveProperties({
+        shearWalls: true,
+        xBracing: false,
+        cfrpWrap: false,
+        baseIsolators: false
+      });
+      const bracedProps = ShakeTableEngine.computeEffectiveProperties({
+        shearWalls: false,
+        xBracing: true,
+        cfrpWrap: false,
+        baseIsolators: false
+      });
+
+      if (wallProps.stiffnessKnM <= baseProps.stiffnessKnM * 2.0) {
+        throw new Error('Muros de cortante deben al menos duplicar la rigidez lateral');
+      }
+      if (wallProps.naturalFrequencyHz <= baseProps.naturalFrequencyHz) {
+        throw new Error('La frecuencia natural debe elevarse con muros de cortante');
+      }
+      if (bracedProps.stiffnessKnM <= baseProps.stiffnessKnM * 1.5) {
+        throw new Error('Arriostramientos en X deben elevar la rigidez lateral');
+      }
+
+      // Comprobar que en régimen de viento extremo (150 km/h) los muros reducen el desplazamiento
+      const windParams = { pgaG: 0.1, frequencyHz: 1.0, waveType: 'harmonic' as const, windSpeedKmh: 150, liquefactionRatio: 0 };
+      const unreinforced = ShakeTableEngine.evaluateDynamicResponse(
+        windParams,
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        0
+      );
+      const withWalls = ShakeTableEngine.evaluateDynamicResponse(
+        windParams,
+        { shearWalls: true, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        0
+      );
+
+      if (withWalls.interstoryDriftRatio >= unreinforced.interstoryDriftRatio) {
+        throw new Error('Los muros de cortante no redujeron la deriva bajo viento extremo');
+      }
+    }
+  },
+  {
+    id: 'TEST-21',
+    name: 'Banco de Pruebas: Confinamiento CFRP y Capacidad Última de Deformación',
+    category: 'Banco de Pruebas Dinámico',
+    run: () => {
+      const normalProps = ShakeTableEngine.computeEffectiveProperties({
+        shearWalls: false,
+        xBracing: false,
+        cfrpWrap: false,
+        baseIsolators: false
+      });
+      const cfrpProps = ShakeTableEngine.computeEffectiveProperties({
+        shearWalls: false,
+        xBracing: false,
+        cfrpWrap: true,
+        baseIsolators: false
+      });
+
+      if (cfrpProps.ultimateDriftCapacity <= normalProps.ultimateDriftCapacity * 1.5) {
+        throw new Error(`El confinamiento con CFRP debe incrementar la ductilidad última en al menos 50% (Normal: ${normalProps.ultimateDriftCapacity}, CFRP: ${cfrpProps.ultimateDriftCapacity})`);
+      }
+
+      // Probar en solicitación extrema (PGA = 0.85g)
+      const extremeParams = { pgaG: 0.85, frequencyHz: 2.8, waveType: 'impulse' as const, windSpeedKmh: 0, liquefactionRatio: 0 };
+      const unreinforced = ShakeTableEngine.evaluateDynamicResponse(
+        extremeParams,
+        { shearWalls: false, xBracing: false, cfrpWrap: false, baseIsolators: false },
+        0.5
+      );
+      const withCfrp = ShakeTableEngine.evaluateDynamicResponse(
+        extremeParams,
+        { shearWalls: false, xBracing: false, cfrpWrap: true, baseIsolators: false },
+        0.5
+      );
+
+      // El índice de daño Park-Ang con CFRP debe ser menor gracias a la mayor ductilidad
+      if (withCfrp.parkAngDamageIndex >= unreinforced.parkAngDamageIndex) {
+        throw new Error(`El índice de daño con CFRP (${withCfrp.parkAngDamageIndex}) debería ser inferior al modelo sin confinar (${unreinforced.parkAngDamageIndex})`);
       }
     }
   }
