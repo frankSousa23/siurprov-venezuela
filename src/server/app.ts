@@ -9,6 +9,25 @@ import { SOIL_PROFILES } from '../data/soilProfiles';
 
 dotenv.config();
 
+/**
+ * server/app.ts: Servidor Backend REST y Capa de Servicios de Red (Express + Node.js)
+ *
+ * ARQUITECTURA Y PATRONES:
+ * - Application Factory Pattern: La función `createApp()` crea y configura la instancia de Express de forma aislada.
+ *   Esto permite que los tests en `runAllTests.ts` levanten servidores efímeros en puertos aleatorios (`listen(0)`)
+ *   sin colisionar con el servidor de desarrollo principal en el puerto 3000.
+ * - Cabeceras de Seguridad Defensiva (Hardening HTTP): Inyecta cabeceras equivalentes a Helmet (CSP, nosniff,
+ *   SAMEORIGIN, Referrer-Policy) para mitigar clickjacking, MIME sniffing e inyecciones.
+ * - Rate Limiting en Memoria: Registra timestamps por IP para mitigar ataques de denegación de servicio (DoS)
+ *   o saturación de endpoints de cálculo sin requerir bases de datos pesadas externas como Redis.
+ * - Validación Cruzada Isomórfica: Expone `/api/simulate/full`, garantizando que un cliente liviano o una API externa
+ *   pueda ejecutar exactamente las mismas ecuaciones COVENIN 1756 que el frontend.
+ *
+ * ¿CÓMO INTERACTÚA CON EL SISTEMA?:
+ * 1. server.ts invoca `createApp()` y enlaza el puerto 3000 para servir en desarrollo o producción local.
+ * 2. ApiSwaggerExplorer.tsx documenta interactivamente las rutas expuestas por esta aplicación.
+ * 3. Las pruebas CI/CD TEST-14 a TEST-17 auditan diagnósticos (/api/health), cabeceras y límites de tasa.
+ */
 export function createApp(options: { rateLimitMax?: number } = {}) {
 const app = express();
 

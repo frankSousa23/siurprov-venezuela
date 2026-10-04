@@ -6,29 +6,67 @@ import {
   VenezuelaRegion
 } from '../types';
 
+/**
+ * SIURPROV - Simulador Urbano de Proyección para Venezuela
+ * structuralEngine.ts: Motor Analítico de Ingeniería Sismorresistente y Multi-Amenaza
+ *
+ * ARQUITECTURA Y PATRONES:
+ * - Clean Architecture: Funciones puras deterministas, sin estado mutable ni dependencias del DOM/React.
+ * - Reutilización Isomórfica: Ejecutable idénticamente en el cliente (CanvasSimulator) y en el backend (Express /api/simulate/full).
+ * - Cumplimiento Normativo: Norma Venezolana COVENIN 1756-1:2019 "Edificaciones Sismorresistentes".
+ *
+ * ¿CÓMO INTERACTÚA CON EL SISTEMA?:
+ * 1. Recibe la configuración de suelo (S1-S4) y tipología desde CanvasSimulator o CivilEngineeringLab.
+ * 2. Calcula período fundamental (T1), aceleración espectral (Sa) y cortante basal.
+ * 3. Evalúa factores de seguridad geitécnicos (Bishop/Newmark) y empujes hidrodinámicos de aluvión.
+ * 4. La prueba TEST-16 en CI/CD valida que este motor coincida exactamente con la respuesta del servidor Express.
+ *
+ * PUNTOS DE ESCALABILIDAD:
+ * - Para añadir un nuevo sistema estructural: Extender la constante `Ct` en `calculateFundamentalPeriod`.
+ * - Para análisis no lineal más avanzado: Integrar integración paso a paso Newmark-beta o matrices de rigidez por piso.
+ */
 export class StructuralSimulationEngine {
   /**
    * Calcula el período natural fundamental de vibración de la estructura (Tn)
-   * según formulación empírica COVENIN 1756: Tn = Ct * Hn^(3/4)
+   * según formulación empírica COVENIN 1756-1:2019 Art. 7.2:
+   *
+   *   Tn = Ct * (Hn)^(3/4)
+   *
+   * @param typology Tipología estructural (altura total Hn = stories * storyHeightM)
+   * @returns Período fundamental de vibración en segundos (s), acotado a un mínimo de 0.12s
+   *
+   * Fundamento físico: A mayor altura y mayor flexibilidad (Ct elevado, como pórticos de acero),
+   * mayor es el período natural de oscilación. Las estructuras rígidas (mampostería) tienen Tn menor.
    */
   public static calculateFundamentalPeriod(typology: BuildingTypology): number {
     const totalHeightM = typology.stories * typology.storyHeightM;
-    let Ct = 0.075; // Pórticos de concreto armado
+    let Ct = 0.075; // Pórticos de concreto armado (COVENIN Tabla 7.1)
     if (typology.structuralSystem.includes('Mampostería')) {
-      Ct = 0.050;
+      Ct = 0.050; // Muros y mampostería confinada (más rígido)
     } else if (typology.structuralSystem.includes('Autoconstrucción')) {
-      Ct = 0.060;
+      Ct = 0.060; // Vivienda informal en ladera con rigidez intermedia
     } else if (typology.structuralSystem.includes('Puente')) {
-      Ct = 0.090;
+      Ct = 0.090; // Estructuras flexibles de infraestructura vial
     } else if (typology.structuralSystem.includes('Metálica')) {
-      Ct = 0.085;
+      Ct = 0.085; // Pórticos metálicos no arriostrados
     }
     return Math.max(0.12, Ct * Math.pow(totalHeightM, 0.75));
   }
 
   /**
-   * Genera el Espectro de Respuesta Elástica e Inelástica según COVENIN 1756:2019
-   * Retorna la aceleración espectral Sa en unidades de gravedad (g)
+   * Genera el Espectro de Respuesta Elástica e Inelástica según COVENIN 1756:2019 (Art. 6.4).
+   *
+   * FÓRMULAS DEL ESPECTRO:
+   * - Rama inicial ascendente (T <= T0 = 0.1*T*): alpha = 1.0 + (beta - 1.0) * (T / T0)
+   * - Meseta de máxima amplificación (T0 < T <= T*): alpha = beta
+   * - Rama descendente de velocidades y desplazamientos (T > T*): alpha = beta * (T* / T)^gamma
+   *
+   * @param a0 Aceleración pico del terreno (PGA en g) según zona sísmica (Zonas 1 a 7)
+   * @param soilProfile Perfil geotécnico COVENIN (S1 roca dura a S4 depósitos aluviales blandos)
+   * @param periodT Período fundamental de la estructura (s)
+   * @param importanceI Factor de importancia de la edificación (Grupo A = 1.30, Grupo B = 1.00)
+   * @param ductilityR Factor de reducción por ductilidad (R=6 para ND3 dúctil, R=1.5 mampostería)
+   * @returns { Sa: aceleración inelástica de diseño, alpha: factor espectral, elasticSa: aceleración elástica }
    */
   public static calculateSpectralAcceleration(
     a0: number,

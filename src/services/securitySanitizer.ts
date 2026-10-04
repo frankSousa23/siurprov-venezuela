@@ -1,5 +1,20 @@
 /**
  * SIURPROV - Módulo de Seguridad, Sanitización de Entradas y Validación de Integridad
+ * securitySanitizer.ts: Barrera de Defensa en Profundidad (OWASP Top 10)
+ *
+ * ARQUITECTURA Y PATRONES:
+ * - Defensa en Profundidad (Defense in Depth): No asume que los datos provienen de fuentes benignas,
+ *   incluso si vienen de un archivo cargado localmente por el propio usuario.
+ * - Mitigación XSS (Cross-Site Scripting): Escapa entidades HTML peligrosas antes de que lleguen al DOM.
+ * - Prevención de Prototype Pollution: Neutraliza intentos de sobreescritura de prototipos globales
+ *   eliminando recursivamente propiedades como `__proto__`, `constructor` y `prototype`.
+ * - Geocercado Normativo (Geo-fencing): Valida que toda coordenada geográfica pertenezca al cuadrante WGS84 venezolano.
+ *
+ * ¿CÓMO INTERACTÚA CON EL SISTEMA?:
+ * 1. studyStorage.ts invoca este módulo al importar archivos JSON o Base64.
+ * 2. El servidor Express lo utiliza en middlewares de validación de payloads.
+ * 3. Las pruebas CI/CD TEST-06, TEST-07 y TEST-08 auditan el blindaje contra vectores maliciosos conocidos.
+ *
  * Autor: Ing. Frank Sousa (UNERG 2025)
  * San Juan de los Morros, Estado Guárico, Venezuela.
  */

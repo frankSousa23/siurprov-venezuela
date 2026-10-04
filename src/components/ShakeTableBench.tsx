@@ -49,6 +49,18 @@ interface Bench3DSceneProps {
   customBuilding?: Partial<ImportedBuildingConfig>;
 }
 
+/**
+ * Bench3DScene: Escena Tridimensional de la Mesa Sísmica en WebGL (Three.js / R3F)
+ *
+ * ARQUITECTURA Y PATRONES:
+ * - Ciclo Gráfico Desacoplado: Utiliza `useFrame((_, delta) => ...)` para avanzar el tiempo de física
+ *   y actualizar las matrices de traslación de la mesa y la superestructura a 60 FPS mediante refs directos,
+ *   evitando el cuello de botella que causaría actualizar el estado de React en cada frame.
+ * - Geometría Paramétrica Adaptable: Renderiza dinámicamente entre 1 y 6 niveles según la estructura
+ *   recibida (`customBuilding.levels`), acoplando columnas, vigas, losas y refuerzos condicionales.
+ * - Desacoplamiento Basal Visivo: Cuando `retrofits.baseIsolators` está activo, la mesa vibra con
+ *   amplitud completa mientras la superestructura experimenta un movimiento atenuado y suave.
+ */
 const Bench3DScene: React.FC<Bench3DSceneProps> = ({
   params,
   retrofits,

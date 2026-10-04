@@ -1,7 +1,24 @@
 /**
  * SIURPROV - Servicio de Exportación, Importación, Verificación e Intercambio de Estudios
- * Permite guardar, empaquetar, compartir y cargar estudios completos en formato abierto (.siurprov / JSON)
- * Compatible entre entornos locales (PC/móvil) y despliegues en la nube.
+ * studyStorage.ts: Gestión de Persistencia Local, Serialización e Integridad Criptográfica
+ *
+ * ARQUITECTURA Y PATRONES:
+ * - Offline-First Storage: Permite guardar estudios completos en el almacenamiento local del navegador
+ *   o exportarlos en formato de archivo abierto Base64 (.siurprov / .json) sin depender de servidores.
+ * - Integridad Criptográfica SHA-256: Genera un hash criptográfico de la carga útil (`checksum`). Al importar,
+ *   recalcula el digest; si el archivo fue alterado externamente, rechaza la carga para prevenir corrupción.
+ * - Sanitización en Frontera de Entrada: Pasa todos los campos de texto por `SecuritySanitizer` para neutralizar
+ *   inyecciones XSS antes de persistir o renderizar.
+ *
+ * ¿CÓMO INTERACTÚA CON EL SISTEMA?:
+ * 1. StudyManagerModal.tsx utiliza este servicio para listar estudios precargados y exportar/importar archivos.
+ * 2. El servidor Express (/api/study/validate) consume este servicio para validar firmas en la nube.
+ * 3. Las pruebas automatizadas TEST-09, TEST-10 y TEST-13 auditan el ciclo de vida, serialización y rechazo de manipulaciones.
+ *
+ * PUNTOS DE ESCALABILIDAD:
+ * - Soporte para IndexedDB: Para proyectos de gran escala con cientos de edificaciones georreferenciadas.
+ * - Firma asimétrica con par de claves pública/privada (RSA/ECDSA) para certificación institucional de informes.
+ *
  * Autor: Ing. Frank Sousa (UNERG 2025)
  * San Juan de los Morros, Estado Guárico, Venezuela.
  */

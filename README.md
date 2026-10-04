@@ -121,6 +121,21 @@ Los estudios pueden ser exportados desde el botón **"Estudios (.siurprov)"** en
 
 ---
 
+## 📚 Guía de Arquitectura, Ingeniería y Aprendizaje Autónomo
+
+Para estudiantes, ingenieros y desarrolladores que deseen comprender a fondo el funcionamiento del código, auditar cambios en GitHub Desktop, preparar entrevistas técnicas o continuar desarrollando sin depender de suscripciones pagas de IA:
+
+👉 **Consulte el manual maestro:** [`docs/ARQUITECTURA_Y_APRENDIZAJE.md`](docs/ARQUITECTURA_Y_APRENDIZAJE.md)
+
+**Contenido pedagógico incluido:**
+- 🗺️ **Mapa de 4 capas**: Presentación React 19/Three.js, Motores de Cálculo Puro COVENIN/FEMA, Backend Express blindado y CI/CD.
+- 🏛️ **Patrones de Software**: *Clean Architecture*, Elevación de Estado (*State Lifting*), Funciones Puras e Integridad Criptográfica Offline-First.
+- 🔍 **Lectura Inversa de Diffs**: Cómo auditar commits en GitHub Desktop (Tipos ➔ Servicios ➔ UI ➔ Tests) para aprender programando.
+- ⚡ **Desarrollo sin Costos**: Configuración paso a paso de modelos locales gratuitos con **Ollama** (`qwen2.5-coder:7b`) y depuración autónoma con el compilador (`npx tsc --noEmit`) y la suite (`npm test`).
+- 💼 **Banco de 10 Preguntas y Respuestas para Entrevistas Laborales**: Justificaciones de diseño para defender este proyecto en procesos de selección técnica.
+
+---
+
 ## 👤 Autor y Contacto
 
 - **Autor:** Ing. Frank Sousa (`frankalfonso1988@gmail.com`)

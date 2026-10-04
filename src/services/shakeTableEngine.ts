@@ -1,10 +1,22 @@
 /**
  * SIURPROV - Simulador Urbano de Proyección para Venezuela
- * shakeTableEngine.ts: Motor analítico de dinámica de estructuras para el Banco de Pruebas
+ * shakeTableEngine.ts: Motor Analítico de Dinámica de Estructuras y Mesa Sísmica (FEMA 356 / COVENIN 1756)
  *
- * Implementa ecuaciones de movimiento para osciladores acoplados bajo excitación en la base,
- * amplificación armónica (DMF), directividad de pulsos de falla y modificación por refuerzos
- * estructurales según COVENIN 1756 y FEMA 356.
+ * ARQUITECTURA Y PATRONES:
+ * - Dinámica Estructural SDOF/MDOF Equivalente: Resuelve la ecuación de movimiento con amortiguamiento viscoso
+ *   y excitación armónica o impulsiva en la base: m*u''(t) + c*u'(t) + k*u(t) = -m*u_g''(t).
+ * - Desacoplamiento Aislador-Superestructura: Modela aisladores elastoméricos con núcleo de plomo (LRB)
+ *   elevando el período fundamental y limitando la transmisión de fuerza a la superestructura.
+ * - Daño Bi-Componente de Park-Ang: Combina deformación plástica pico y fatiga histerética acumulada.
+ *
+ * ¿CÓMO INTERACTÚA CON EL SISTEMA?:
+ * 1. ShakeTableBench.tsx invoca `evaluateDynamicResponse()` para obtener desplazamientos a 60 FPS.
+ * 2. CanvasSimulator.tsx exporta su geometría mediante `ImportedBuildingConfig` hacia este motor.
+ * 3. La suite CI/CD en runAllTests.ts (TEST-18 a TEST-23) audita resonancia, daño y reglas de gamificación.
+ *
+ * PUNTOS DE ESCALABILIDAD:
+ * - Importación de acelerogramas reales: Reemplazar la excitación sinusoidal por convolución con series de tiempo.
+ * - Amortiguadores de masa sintonizada (TMD) en el último piso para mitigar vibraciones eólicas y sísmicas.
  */
 
 export interface ShakeTableParameters {

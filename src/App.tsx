@@ -57,6 +57,20 @@ const ShakeTableBench = React.lazy(() => import('./components/ShakeTableBench'))
 
 type ActiveView = 'maps' | 'simulator' | 'bench' | 'mapbiomas' | 'school' | 'emergency' | 'architecture' | 'swagger';
 
+/**
+ * App.tsx: Orquestador Raíz y Gestor de Estado Global de SIURPROV
+ *
+ * ARQUITECTURA Y PATRONES:
+ * - Single Source of Truth: Centraliza la región activa, año de serie temporal MapBiomas,
+ *   tipología seleccionada, escenario multi-amenaza y el edificio transferido al banco sísmico.
+ * - Elevación de Estado (State Lifting): Facilita la comunicación entre componentes hermanos.
+ *   Ejemplo: CanvasSimulator emite `onSendToBench`, App guarda el estado en `importedBenchBuilding`
+ *   y conmuta la vista activa a 'bench', entregándole el objeto a ShakeTableBench.
+ * - Lazy Loading & Code Splitting: `ShakeTableBench` se importa con `React.lazy()` para no cargar
+ *   las librerías pesadas de Three.js y WebGL hasta que el usuario realmente ingrese a dicha pestaña.
+ * - Persistencia de Respaldo: `siurprov_active_bench_import` en `localStorage` evita perder la
+ *   geometría transferida si el usuario refresca la página por accidente.
+ */
 export default function App() {
   // Navigation View (Defaulting to the powerful Interactive Maps system)
   const [activeView, setActiveView] = useState<ActiveView>('maps');

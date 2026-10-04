@@ -40,6 +40,17 @@ interface CanvasSimulatorProps {
   onSendToBench?: (config: ImportedBuildingConfig) => void;
 }
 
+/**
+ * CanvasSimulator.tsx: Simulador Físico Multi-Amenaza 2D/3D
+ *
+ * ARQUITECTURA Y PATRONES:
+ * - Renderizado Híbrido: Ofrece visualización 2D acelerada por HTML5 Canvas y vista 3D en WebGL
+ *   mediante carga diferida (lazy loading de `Structure3DView`).
+ * - Loop de Animación Continuo: Emplea `requestAnimationFrame` para calcular la posición instantánea
+ *   de cada entrepiso oscilante bajo ondas armónicas o pulsos sísmicos, coloreando según gradiente Park-Ang.
+ * - Despachador Intermodular: `handleExportToBench` empaqueta la masa total estimada, rigidez lateral,
+ *   altura y suelo COVENIN en un `ImportedBuildingConfig`, despachándolo mediante el prop `onSendToBench`.
+ */
 export const CanvasSimulator: React.FC<CanvasSimulatorProps> = ({
   region,
   typology,
