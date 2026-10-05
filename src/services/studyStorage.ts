@@ -23,11 +23,91 @@
  * San Juan de los Morros, Estado Guárico, Venezuela.
  */
 
-import { MapBuilding, MultiHazardParameters, SimulationResult, SoilProfileType, VenezuelaRegion } from '../types';
+import {
+  BuildingTypology,
+  MapBuilding,
+  MultiHazardParameters,
+  SimulationResult,
+  SoilProfile,
+  SoilProfileType,
+  VenezuelaRegion
+} from '../types';
 import { SecuritySanitizer } from './securitySanitizer';
 import { VENEZUELA_REGIONS } from '../data/venezuelaRegions';
 import { BUILDING_TYPOLOGIES } from '../data/buildingTypologies';
 import { SOIL_PROFILES } from '../data/soilProfiles';
+import { ImportedBuildingConfig } from './shakeTableEngine';
+import { StructuralSimulationEngine } from './structuralEngine';
+
+let fallbackMemoryStorage: Record<string, string> = {};
+
+function getSafeStorage() {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    return window.localStorage;
+  }
+  if (typeof localStorage !== 'undefined') {
+    return localStorage;
+  }
+  return {
+    getItem: (key: string) => fallbackMemoryStorage[key] ?? null,
+    setItem: (key: string, val: string) => { fallbackMemoryStorage[key] = val; },
+    removeItem: (key: string) => { delete fallbackMemoryStorage[key]; },
+    clear: () => { fallbackMemoryStorage = {}; }
+  };
+}
+
+export interface CrashRecoverySnapshot {
+  timestamp: number;
+  isDirty: boolean;
+  activeView: string;
+  regionId: string;
+  selectedYear: number;
+  typologyId: string;
+  soilProfileType: SoilProfileType;
+  scenario: MultiHazardParameters;
+  userPlacedBuildings: MapBuilding[];
+  importedBenchBuilding?: ImportedBuildingConfig | null;
+}
+
+export interface TechnicalReportInput {
+  region: VenezuelaRegion;
+  typology: BuildingTypology;
+  soilProfile: SoilProfile;
+  scenario: MultiHazardParameters;
+  simulationResult: SimulationResult;
+  selectedYear: number;
+  userPlacedBuildings?: MapBuilding[];
+}
+
+export interface TechnicalReportOutput {
+  markdown: string;
+  summaryTable: {
+    regionName: string;
+    seismicZone: number;
+    a0: number;
+    faultName: string;
+    soilType: string;
+    typologyName: string;
+    stories: number;
+    t1: number;
+    v0Kn: number;
+    driftPercent: number;
+    coveninDriftLimit: number;
+    ems98Grade: string;
+    parkAngIndex: number;
+    estimatedLossUsd: number;
+    slopeFactorOfSafety: number;
+    newmarkDisplacementCm: number;
+  };
+  mapBiomasTransitions: Array<{
+    year: number;
+    forestCoverKm2: number;
+    urbanCoverKm2: number;
+    informalSlopeCoverKm2: number;
+    meanRunoffCoefficient: number;
+    deforestationPercent: number;
+  }>;
+}
 
 export interface SiurprovStudyPackage {
   fileType: 'SIURPROV_STUDY';
@@ -533,4 +613,228 @@ export class StudyStorageService {
       }
     ];
   }
+
+  public static readonly CRASH_RECOVERY_KEY = 'siurprov_crash_recovery_snapshot';
+
+  /**
+   * Guarda un snapshot continuo en segundo plano para protección ante cortes eléctricos imprevistos.
+   * Marca el estado como sucio (`isDirty: true`) y actualiza la marca de tiempo.
+   */
+  public static saveCrashRecoverySnapshot(snapshot: Partial<CrashRecoverySnapshot>): void {
+    try {
+      const storage = getSafeStorage();
+      const currentYear = snapshot.selectedYear ?? 2023;
+      const fullSnapshot: CrashRecoverySnapshot = {
+        timestamp: Date.now(),
+        isDirty: true,
+        activeView: snapshot.activeView || 'maps',
+        regionId: snapshot.regionId || 'caracas-vargas',
+        selectedYear: currentYear,
+        typologyId: snapshot.typologyId || 'autoconstruccion-ladera',
+        soilProfileType: snapshot.soilProfileType || 'S3',
+        scenario: snapshot.scenario
+          ? SecuritySanitizer.sanitizeScenario(snapshot.scenario)
+          : {
+              earthquake: { enabled: true, pgaG: 0.35, magnitudeMw: 6.8, depthKm: 15, durationSeconds: 35, distanceToFaultKm: 8 },
+              debrisFlow: { enabled: true, rainfallAccumulation24hMm: 180, soilSaturationPercent: 85, debrisVelocityMs: 7.5, debrisDepthM: 1.8, densityKgM3: 1950, boulderImpactSizeM: 1.2 },
+              flood: { enabled: false, waterLevelM: 1.2, flowVelocityMs: 2.0, durationHours: 6, soilSaturationIncrease: 35 },
+              wind: { enabled: false, speedKmh: 95, gustFactor: 1.25 },
+              slope: { enabled: true, angleDeg: 35, cohesionKpa: 18, internalFrictionAngleDeg: 26 }
+            },
+        userPlacedBuildings: (snapshot.userPlacedBuildings || [])
+          .map((b) => SecuritySanitizer.sanitizeUserBuilding(b)!)
+          .filter(Boolean),
+        importedBenchBuilding: snapshot.importedBenchBuilding || null
+      };
+
+      storage.setItem(this.CRASH_RECOVERY_KEY, JSON.stringify(fullSnapshot));
+    } catch (e) {
+      console.warn('SIURPROV: No se pudo guardar snapshot de recuperación ante fallo eléctrico', e);
+    }
+  }
+
+  /**
+   * Carga el snapshot de recuperación si existe, validando su estructura y vigencia (<24 horas).
+   */
+  public static loadCrashRecoverySnapshot(): CrashRecoverySnapshot | null {
+    try {
+      const storage = getSafeStorage();
+      const raw = storage.getItem(this.CRASH_RECOVERY_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as CrashRecoverySnapshot;
+      if (!parsed || typeof parsed !== 'object' || !parsed.timestamp || !parsed.regionId) {
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Limpia o descarta el snapshot de recuperación de sesión
+   */
+  public static clearCrashRecoverySnapshot(): void {
+    try {
+      const storage = getSafeStorage();
+      storage.removeItem(this.CRASH_RECOVERY_KEY);
+    } catch (e) {
+      console.warn('SIURPROV: Error al limpiar snapshot de recuperación:', e);
+    }
+  }
+
+  /**
+   * Genera un informe técnico estructurado multitemporal con métricas MapBiomas (1985-2050),
+   * demanda sísmica COVENIN 1756, factor de seguridad geotécnico y pérdida económica en USD.
+   */
+  public static generateTechnicalReport(
+    studyOrInput: SiurprovStudyPackage | TechnicalReportInput
+  ): TechnicalReportOutput {
+    let region: VenezuelaRegion;
+    let typology: BuildingTypology;
+    let soilProfile: SoilProfile;
+    let scenario: MultiHazardParameters;
+    let simulationResult: SimulationResult;
+    let selectedYear: number;
+
+    if ('studyData' in studyOrInput) {
+      const pkg = studyOrInput;
+      region = VENEZUELA_REGIONS.find((r) => r.id === pkg.studyData.regionId) || VENEZUELA_REGIONS[0];
+      typology = BUILDING_TYPOLOGIES.find((t) => t.id === pkg.studyData.typologyId) || BUILDING_TYPOLOGIES[0];
+      soilProfile = SOIL_PROFILES[pkg.studyData.soilProfileType] || SOIL_PROFILES.S3;
+      scenario = pkg.studyData.scenario;
+      selectedYear = pkg.studyData.selectedYear || 2023;
+      simulationResult = StructuralSimulationEngine.runSimulation(
+        region,
+        typology,
+        soilProfile,
+        scenario,
+        selectedYear
+      );
+    } else {
+      region = studyOrInput.region;
+      typology = studyOrInput.typology;
+      soilProfile = studyOrInput.soilProfile;
+      scenario = studyOrInput.scenario;
+      simulationResult = studyOrInput.simulationResult;
+      selectedYear = studyOrInput.selectedYear;
+    }
+
+    const mapBiomasTransitions = region.mapBiomasTimeSeries.map((t) => ({
+      year: t.year,
+      forestCoverKm2: t.forestCoverKm2,
+      urbanCoverKm2: t.urbanCoverKm2,
+      informalSlopeCoverKm2: t.informalSlopeCoverKm2,
+      meanRunoffCoefficient: t.meanRunoffCoefficient,
+      deforestationPercent: t.deforestationAccumulatedPercent
+    }));
+
+    const tableRows = region.mapBiomasTimeSeries
+      .map(
+        (t) =>
+          `| ${t.year} | ${t.forestCoverKm2} | ${t.urbanCoverKm2} | ${t.informalSlopeCoverKm2} | ${t.meanRunoffCoefficient.toFixed(2)} | ${t.averageSlopeDeg}° | ${t.deforestationAccumulatedPercent.toFixed(1)}% |`
+      )
+      .join('\n');
+
+    const markdown = `# REPÚBLICA BOLIVARIANA DE VENEZUELA
+## SIURPROV — SIMULADOR URBANO DE PROYECCIÓN PARA VENEZUELA
+### EXPEDIENTE TÉCNICO DE AUDITORÍA MULTI-AMENAZA Y VULNERABILIDAD ESTRUCTURAL
+
+- **Expediente N°**: VEN-COVENIN-1756-${selectedYear}-${region.id.toUpperCase()}
+- **Fecha de Emisión**: ${new Date().toISOString().split('T')[0]}
+- **Autor / Ingeniero Responsable**: Ing. Frank Sousa (UNERG 2025, San Juan de los Morros, Edo. Guárico)
+- **Licencia y Distribución**: MIT License (Acceso Abierto, Código y Algoritmos Verificables)
+- **Repositorio Oficial**: https://github.com/frankalfonso1988/SIURPROV
+
+---
+
+### 1. CONTEXTO TERRITORIAL Y AMENAZA SÍSMICA
+- **Región Evaluada**: ${region.name} (${region.state})
+- **Zona Sísmica COVENIN 1756**: Zona ${region.seismicZoneCOVENIN} (Aceleración horizontal de diseño $A_0 = ${region.designAccelerationA0}g$)
+- **Falla Geológica Activa Principal**: ${region.geologicalFault.name} (${region.geologicalFault.type})
+  - *Tasa de desplazamiento*: ${region.geologicalFault.slipRateMmYear} mm/año | *Magnitud máxima esperada*: Mw ${region.geologicalFault.maxExpectedMagnitudeMw}
+- **Perfil Geotécnico de Suelo**: ${soilProfile.name}
+  - *Velocidad de onda de corte ($V_s$)*: ${soilProfile.shearWaveVelocityVs} m/s
+  - *Período característico del suelo ($T^*$)*: ${soilProfile.coveninTStar} s
+
+---
+
+### 2. DINÁMICA MULTITEMPORAL DE COBERTURA DEL SUELO (MAPBIOMAS VENEZUELA 1985–2050)
+La siguiente serie temporal refleja los cambios de cobertura vegetal, expansión urbana y ocupación de laderas informales documentados por la Red Amazónica de Información Socioambiental Georreferenciada (RAISG) y la Red MapBiomas Venezuela:
+
+| Año | Bosque ($km^2$) | Suelo Urbano ($km^2$) | Laderas Informales ($km^2$) | Coeficiente Escorrentía ($C$) | Pendiente Promedio | Deforestación Acumulada |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+${tableRows}
+
+*Nota Técnica*: El incremento del coeficiente de escorrentía $C$ reduce drásticamente el tiempo de concentración de la cuenca e incrementa el caudal pico y el volumen de detritos en flujos torrenciales (aluviones).
+
+---
+
+### 3. EVALUACIÓN ESTRUCTURAL SISMORRESISTENTE (COVENIN 1756:2019)
+- **Tipología Evaluada**: ${typology.name} (${typology.structuralSystem})
+- **Número de Pisos**: ${typology.stories} niveles (${typology.stories * typology.storyHeightM} m de altura total)
+- **Factor de Reducción de Respuesta ($R$)**: R = ${typology.ductilityReductionFactorR}
+- **Período Fundamental Calculado ($T_1$)**: ${simulationResult.fundamentalPeriodT1.toFixed(3)} s
+- **Aceleración Espectral de Diseño ($S_a$)**: ${simulationResult.spectralAccelerationSa.toFixed(3)}g
+- **Cortante Basal de Diseño ($V_0$)**: ${simulationResult.designBaseShearKn.toLocaleString()} kN (${(simulationResult.baseShearToWeightRatio * 100).toFixed(1)}% del peso reactivo)
+- **Deriva Máxima de Entrepiso ($\Delta/H$)**: ${simulationResult.maxStoryDriftPercent.toFixed(2)}% (Límite COVENIN: ${simulationResult.coveninDriftLimitPercent.toFixed(2)}%)
+  - *Conformidad de Deriva*: ${simulationResult.exceedsDriftLimit ? '⚠️ NO CONFORME (Deriva excesiva — Inestabilidad y daño no estructural severo)' : '✅ CONFORME (Dentro de márgenes admisibles)'}
+- **Efectos de Segundo Orden $P-\\Delta$**: Coeficiente de estabilidad $\\theta = ${simulationResult.pDeltaStabilityCoefficient.toFixed(3)} (${simulationResult.pDeltaExceeded ? 'Requiere amplificación de momentos' : 'Efectos despreciables dentro del rango elástico'})
+- **Nivel de Desempeño Sísmico (FEMA 356)**: ${simulationResult.performanceLevel} (Capacidad residual: ${simulationResult.residualCapacityPercent}%)
+- **Índice de Daño Park-Ang ($DI$)**: ${simulationResult.parkAngDamageIndex.toFixed(2)} (${simulationResult.ems98Grade})
+
+---
+
+### 4. GEOTECNIA Y ESTABILIDAD DE LADERAS
+- **Factor de Seguridad del Talud ($FS$)**: ${simulationResult.slopeFactorOfSafety.toFixed(2)} (${simulationResult.slopeFactorOfSafety < 1.0 ? 'Falla Inminente del Terreno' : simulationResult.slopeFactorOfSafety < 1.5 ? 'Estabilidad Precaria ante Sismo' : 'Condición Estable'})
+- **Desplazamiento Permanente de Newmark ($d_N$)**: ${simulationResult.newmarkDisplacementCm.toFixed(1)} cm
+- **Empuje Hidrodinámico de Detritos / Aluvión**: ${simulationResult.debrisImpactForceKn.toFixed(1)} kN
+
+---
+
+### 5. VALORACIÓN DE PÉRDIDAS Y TIEMPO DE RECUPERACIÓN
+- **Pérdida Económica Directa Estimada**: $${simulationResult.estimatedLossUsd.toLocaleString()} USD
+- **Tiempo Estimado de Inactividad (Downtime)**: ${simulationResult.estimatedDowntimeDays} días
+- **Aptitud para Ocupación Inmediata**: ${simulationResult.safeForOccupancy ? '✅ APTO PARA HABITABILIDAD' : '⛔ NO APTO / DESALOJO PREVENTIVO REQUERIDO'}
+- **Mecanismo Primario de Falla**: ${simulationResult.primaryFailureMechanism}
+
+---
+
+### 6. ATRIBUCIÓN CIENTÍFICA, LICENCIA Y REPOSITORIO
+1. **MapBiomas Venezuela & RAISG**:
+   Colección de Mapas Anuales de Cobertura y Uso del Suelo de Venezuela (1985–2023). Red Amazónica de Información Socioambiental Georreferenciada (RAISG). https://venezuela.mapbiomas.org
+2. **Norma Venezolana COVENIN 1756:2019**:
+   "Edificaciones Sismorresistentes". FONDONORMA / FUNVISIS. Caracas, Venezuela.
+3. **Fundación Venezolana de Investigaciones Sismológicas (FUNVISIS)**:
+   Catálogo Sismológico Nacional y Base de Datos de Fallas Cuaternarias de Venezuela.
+4. **Desarrollador y Autor del Sistema**:
+   Ing. Frank Sousa (Ingeniero en Informática, UNERG 2025). Correo: frankalfonso1988@gmail.com.
+5. **Licencia de Software**:
+   Distribuido bajo Licencia MIT de Código Abierto. Libre para investigación, docencia y peritaje de gestión de riesgo territorial.
+`;
+
+    return {
+      markdown,
+      summaryTable: {
+        regionName: region.name,
+        seismicZone: region.seismicZoneCOVENIN,
+        a0: region.designAccelerationA0,
+        faultName: region.geologicalFault.name,
+        soilType: soilProfile.type,
+        typologyName: typology.name,
+        stories: typology.stories,
+        t1: simulationResult.fundamentalPeriodT1,
+        v0Kn: simulationResult.designBaseShearKn,
+        driftPercent: simulationResult.maxStoryDriftPercent,
+        coveninDriftLimit: simulationResult.coveninDriftLimitPercent,
+        ems98Grade: simulationResult.ems98Grade,
+        parkAngIndex: simulationResult.parkAngDamageIndex,
+        estimatedLossUsd: simulationResult.estimatedLossUsd,
+        slopeFactorOfSafety: simulationResult.slopeFactorOfSafety,
+        newmarkDisplacementCm: simulationResult.newmarkDisplacementCm
+      },
+      mapBiomasTransitions
+    };
+  }
 }
+

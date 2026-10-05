@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Activity,
   MapPin,
@@ -50,7 +50,11 @@ import { GisArchitectureModal } from './components/GisArchitectureModal';
 import { ApiSwaggerExplorer } from './components/ApiSwaggerExplorer';
 import { StudyManagerModal } from './components/StudyManagerModal';
 import { QuickStartLocalGuideModal } from './components/QuickStartLocalGuideModal';
-import { SiurprovStudyPackage } from './services/studyStorage';
+import {
+  SiurprovStudyPackage,
+  StudyStorageService,
+  CrashRecoverySnapshot
+} from './services/studyStorage';
 import { ImportedBuildingConfig } from './services/shakeTableEngine';
 
 const ShakeTableBench = React.lazy(() => import('./components/ShakeTableBench'));
@@ -138,6 +142,51 @@ export default function App() {
   const [isStudyManagerOpen, setIsStudyManagerOpen] = useState(false);
   const [isQuickStartOpen, setIsQuickStartOpen] = useState(false);
 
+  // Recuperación reactiva ante cortes imprevistos de electricidad
+  const [interruptedSnapshot, setInterruptedSnapshot] = useState<CrashRecoverySnapshot | null>(null);
+  const [showRecoveryBanner, setShowRecoveryBanner] = useState<boolean>(false);
+
+  // Detección al iniciar de una sesión interrumpida por corte eléctrico (<24 horas)
+  useEffect(() => {
+    const snapshot = StudyStorageService.loadCrashRecoverySnapshot();
+    if (snapshot && snapshot.isDirty) {
+      const hoursOld = (Date.now() - snapshot.timestamp) / (1000 * 60 * 60);
+      if (hoursOld < 24) {
+        setInterruptedSnapshot(snapshot);
+        setShowRecoveryBanner(true);
+      }
+    }
+  }, []);
+
+  const handleRestoreSession = () => {
+    if (!interruptedSnapshot) return;
+    const reg = VENEZUELA_REGIONS.find((r) => r.id === interruptedSnapshot.regionId) || VENEZUELA_REGIONS[0];
+    const typ = BUILDING_TYPOLOGIES.find((t) => t.id === interruptedSnapshot.typologyId) || BUILDING_TYPOLOGIES[0];
+    const soil = SOIL_PROFILES[interruptedSnapshot.soilProfileType] || SOIL_PROFILES.S3;
+
+    setSelectedRegion(reg);
+    setSelectedTypology(typ);
+    setSelectedSoilProfile(soil);
+    setSelectedYear(interruptedSnapshot.selectedYear || 2023);
+    setScenario(interruptedSnapshot.scenario);
+    if (interruptedSnapshot.userPlacedBuildings && Array.isArray(interruptedSnapshot.userPlacedBuildings)) {
+      handleUserBuildingsChange(interruptedSnapshot.userPlacedBuildings);
+    }
+    if (interruptedSnapshot.importedBenchBuilding) {
+      setImportedBenchBuilding(interruptedSnapshot.importedBenchBuilding);
+    }
+    if (interruptedSnapshot.activeView) {
+      setActiveView(interruptedSnapshot.activeView as ActiveView);
+    }
+    setShowRecoveryBanner(false);
+  };
+
+  const handleDismissRecovery = () => {
+    StudyStorageService.clearCrashRecoverySnapshot();
+    setShowRecoveryBanner(false);
+    setInterruptedSnapshot(null);
+  };
+
   // Multi-Hazard Scenario Parameters
   const [scenario, setScenario] = useState<MultiHazardParameters>({
     earthquake: {
@@ -187,6 +236,33 @@ export default function App() {
       selectedYear
     );
   }, [selectedRegion, selectedTypology, selectedSoilProfile, scenario, selectedYear]);
+
+  // Auto-guardado reactivo continuo en segundo plano ante modificaciones (debounce 300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      StudyStorageService.saveCrashRecoverySnapshot({
+        activeView,
+        regionId: selectedRegion.id,
+        selectedYear,
+        typologyId: selectedTypology.id,
+        soilProfileType: selectedSoilProfile.type,
+        scenario,
+        userPlacedBuildings,
+        importedBenchBuilding
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [
+    activeView,
+    selectedRegion.id,
+    selectedYear,
+    selectedTypology.id,
+    selectedSoilProfile.type,
+    scenario,
+    userPlacedBuildings,
+    importedBenchBuilding
+  ]);
 
   // Carga e hidratación completa de un estudio .siurprov importado o de ejemplo
   const handleLoadStudy = (pkg: SiurprovStudyPackage) => {
@@ -390,6 +466,44 @@ export default function App() {
           </button>
         </div>
       </header>
+
+      {/* Banner de Recuperación de Sesión tras Corte de Energía Eléctrica */}
+      {showRecoveryBanner && interruptedSnapshot && (
+        <div className="bg-gradient-to-r from-amber-950 via-slate-900 to-amber-950 border-b border-amber-600/60 px-4 py-2.5 text-xs text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg z-30 animate-in fade-in duration-300">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 shrink-0">
+              <Zap className="w-4 h-4 fill-amber-400" />
+            </div>
+            <div>
+              <p className="font-bold text-amber-100 flex items-center gap-1.5">
+                <span>⚠️ Sesión previa interrumpida detectada (recuperación por apagón eléctrico)</span>
+              </p>
+              <p className="text-[11px] text-amber-300/80">
+                Se detectó un espacio de trabajo con modificaciones para la región{' '}
+                <strong className="text-white">
+                  {VENEZUELA_REGIONS.find((r) => r.id === interruptedSnapshot.regionId)?.name || interruptedSnapshot.regionId}
+                </strong>{' '}
+                ({new Date(interruptedSnapshot.timestamp).toLocaleTimeString('es-VE')}). ¿Desea restaurar el estado completo de trabajo?
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+            <button
+              onClick={handleRestoreSession}
+              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Restaurar Sesión</span>
+            </button>
+            <button
+              onClick={handleDismissRecovery}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition cursor-pointer"
+            >
+              Descartar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Sub-bar (Responsive with horizontal scrolling and mobile drawer) */}
       <div

@@ -348,6 +348,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         urbanImperviousRatePercent: 12
       },
       {
+        year: 1995,
+        forestCoverKm2: 890,
+        urbanCoverKm2: 90,
+        informalSlopeCoverKm2: 25,
+        waterBodiesKm2: 24,
+        agricultureKm2: 225,
+        meanRunoffCoefficient: 0.38,
+        averageSlopeDeg: 35,
+        deforestationAccumulatedPercent: 6.3,
+        urbanImperviousRatePercent: 20
+      },
+      {
         year: 2005,
         forestCoverKm2: 830,
         urbanCoverKm2: 125,
@@ -358,6 +370,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         averageSlopeDeg: 36,
         deforestationAccumulatedPercent: 12.6,
         urbanImperviousRatePercent: 28
+      },
+      {
+        year: 2015,
+        forestCoverKm2: 775,
+        urbanCoverKm2: 155,
+        informalSlopeCoverKm2: 60,
+        waterBodiesKm2: 20,
+        agricultureKm2: 190,
+        meanRunoffCoefficient: 0.53,
+        averageSlopeDeg: 37,
+        deforestationAccumulatedPercent: 18.4,
+        urbanImperviousRatePercent: 36
       },
       {
         year: 2023,
@@ -372,16 +396,28 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         urbanImperviousRatePercent: 44
       },
       {
-        year: 2035,
-        forestCoverKm2: 630,
-        urbanCoverKm2: 230,
-        informalSlopeCoverKm2: 110,
-        waterBodiesKm2: 16,
-        agricultureKm2: 145,
-        meanRunoffCoefficient: 0.69,
-        averageSlopeDeg: 40,
-        deforestationAccumulatedPercent: 33.7,
-        urbanImperviousRatePercent: 57
+        year: 2030,
+        forestCoverKm2: 665,
+        urbanCoverKm2: 210,
+        informalSlopeCoverKm2: 95,
+        waterBodiesKm2: 17,
+        agricultureKm2: 160,
+        meanRunoffCoefficient: 0.65,
+        averageSlopeDeg: 39,
+        deforestationAccumulatedPercent: 30.0,
+        urbanImperviousRatePercent: 51
+      },
+      {
+        year: 2040,
+        forestCoverKm2: 590,
+        urbanCoverKm2: 250,
+        informalSlopeCoverKm2: 125,
+        waterBodiesKm2: 15,
+        agricultureKm2: 135,
+        meanRunoffCoefficient: 0.74,
+        averageSlopeDeg: 41,
+        deforestationAccumulatedPercent: 37.9,
+        urbanImperviousRatePercent: 62
       },
       {
         year: 2050,
@@ -717,6 +753,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         urbanImperviousRatePercent: 28
       },
       {
+        year: 1995,
+        forestCoverKm2: 685,
+        urbanCoverKm2: 415,
+        informalSlopeCoverKm2: 35,
+        waterBodiesKm2: 445,
+        agricultureKm2: 655,
+        meanRunoffCoefficient: 0.49,
+        averageSlopeDeg: 4,
+        deforestationAccumulatedPercent: 19.4,
+        urbanImperviousRatePercent: 40
+      },
+      {
         year: 2005,
         forestCoverKm2: 520,
         urbanCoverKm2: 520,
@@ -727,6 +775,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         averageSlopeDeg: 4,
         deforestationAccumulatedPercent: 38.8,
         urbanImperviousRatePercent: 52
+      },
+      {
+        year: 2015,
+        forestCoverKm2: 430,
+        urbanCoverKm2: 605,
+        informalSlopeCoverKm2: 75,
+        waterBodiesKm2: 435,
+        agricultureKm2: 745,
+        meanRunoffCoefficient: 0.67,
+        averageSlopeDeg: 4,
+        deforestationAccumulatedPercent: 49.4,
+        urbanImperviousRatePercent: 60
       },
       {
         year: 2023,
@@ -741,6 +801,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         urbanImperviousRatePercent: 68
       },
       {
+        year: 2030,
+        forestCoverKm2: 275,
+        urbanCoverKm2: 765,
+        informalSlopeCoverKm2: 112,
+        waterBodiesKm2: 425,
+        agricultureKm2: 795,
+        meanRunoffCoefficient: 0.80,
+        averageSlopeDeg: 4,
+        deforestationAccumulatedPercent: 67.6,
+        urbanImperviousRatePercent: 75
+      },
+      {
         year: 2040,
         forestCoverKm2: 210,
         urbanCoverKm2: 840,
@@ -751,6 +823,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         averageSlopeDeg: 4,
         deforestationAccumulatedPercent: 75.3,
         urbanImperviousRatePercent: 81
+      },
+      {
+        year: 2050,
+        forestCoverKm2: 155,
+        urbanCoverKm2: 910,
+        informalSlopeCoverKm2: 150,
+        waterBodiesKm2: 415,
+        agricultureKm2: 820,
+        meanRunoffCoefficient: 0.90,
+        averageSlopeDeg: 4,
+        deforestationAccumulatedPercent: 81.8,
+        urbanImperviousRatePercent: 88
       }
     ],
     urbanSectors: [
@@ -886,6 +970,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         urbanImperviousRatePercent: 18
       },
       {
+        year: 1995,
+        forestCoverKm2: 545,
+        urbanCoverKm2: 110,
+        informalSlopeCoverKm2: 22,
+        waterBodiesKm2: 118,
+        agricultureKm2: 185,
+        meanRunoffCoefficient: 0.42,
+        averageSlopeDeg: 13,
+        deforestationAccumulatedPercent: 9.2,
+        urbanImperviousRatePercent: 26
+      },
+      {
         year: 2005,
         forestCoverKm2: 490,
         urbanCoverKm2: 140,
@@ -896,6 +992,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         averageSlopeDeg: 14,
         deforestationAccumulatedPercent: 18.3,
         urbanImperviousRatePercent: 35
+      },
+      {
+        year: 2015,
+        forestCoverKm2: 435,
+        urbanCoverKm2: 175,
+        informalSlopeCoverKm2: 50,
+        waterBodiesKm2: 112,
+        agricultureKm2: 192,
+        meanRunoffCoefficient: 0.58,
+        averageSlopeDeg: 15,
+        deforestationAccumulatedPercent: 27.5,
+        urbanImperviousRatePercent: 45
       },
       {
         year: 2023,
@@ -910,6 +1018,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         urbanImperviousRatePercent: 54
       },
       {
+        year: 2030,
+        forestCoverKm2: 330,
+        urbanCoverKm2: 245,
+        informalSlopeCoverKm2: 80,
+        waterBodiesKm2: 108,
+        agricultureKm2: 190,
+        meanRunoffCoefficient: 0.73,
+        averageSlopeDeg: 17,
+        deforestationAccumulatedPercent: 45.0,
+        urbanImperviousRatePercent: 61
+      },
+      {
         year: 2040,
         forestCoverKm2: 280,
         urbanCoverKm2: 275,
@@ -920,6 +1040,18 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         averageSlopeDeg: 18,
         deforestationAccumulatedPercent: 53.3,
         urbanImperviousRatePercent: 68
+      },
+      {
+        year: 2050,
+        forestCoverKm2: 225,
+        urbanCoverKm2: 310,
+        informalSlopeCoverKm2: 115,
+        waterBodiesKm2: 100,
+        agricultureKm2: 175,
+        meanRunoffCoefficient: 0.86,
+        averageSlopeDeg: 19,
+        deforestationAccumulatedPercent: 62.5,
+        urbanImperviousRatePercent: 76
       }
     ],
     urbanSectors: [
@@ -1529,6 +1661,243 @@ export const VENEZUELA_REGIONS: VenezuelaRegion[] = [
         'Carretera San Juan - Calabozo (Ruta hacia los Llanos)',
         'Avenida Los Llanos / Avenida Fermín Toro',
         'Avenida Bolívar de San Juan'
+      ]
+    }
+  },
+  {
+    id: 'guayana-caroni',
+    name: 'Cuenca del Río Caroní & Macizo Guayanés (Bolívar)',
+    state: 'Bolívar',
+    capitalCity: 'Ciudad Guayana / Puerto Ordaz / Upata',
+    lat: 8.3150,
+    lng: -62.7120,
+    elevationM: 85,
+    seismicZoneCOVENIN: 1, // A0 = 0.10g
+    designAccelerationA0: 0.10,
+    geologicalFault: {
+      name: 'Falla de Guri & Cratón Guayanés',
+      system: 'Estructuras tectónicas precámbricas intra-placa del Escudo Guayanés',
+      type: 'Falla de rumbo y normal reactivada con sismicidad inducida por embalses',
+      slipRateMmYear: 0.5,
+      maxExpectedMagnitudeMw: 5.8,
+      description:
+        'Basamento ígneo-metamórfico de basamento precámbrico muy rígido (suelo S1). El complejo aloja la Central Hidroeléctrica Simón Bolívar (Guri). El principal desafío socioambiental es la pérdida de cobertura forestal y sabanización por minería de oro y bauxita en la cuenca del Caroní.'
+    },
+    defaultSoilProfile: 'S1',
+    basinTorrencialRisk: 'Medio',
+    slopeRiskIndex: 'Bajo',
+    description:
+      'Cuenca fluvial de importancia estratégica hidroeléctrica nacional con la confluencia de los ríos Orinoco y Caroní. Topografía ondulada sobre roca cristalina. Las series MapBiomas documentan la rápida sustitución de bosque primario húmedo por áreas mineras degradadas y pastizales inducidos.',
+    mapBiomasTimeSeries: [
+      {
+        year: 1985,
+        forestCoverKm2: 1850,
+        urbanCoverKm2: 120,
+        informalSlopeCoverKm2: 8,
+        waterBodiesKm2: 380,
+        agricultureKm2: 140,
+        meanRunoffCoefficient: 0.28,
+        averageSlopeDeg: 6,
+        deforestationAccumulatedPercent: 0,
+        urbanImperviousRatePercent: 14
+      },
+      {
+        year: 1995,
+        forestCoverKm2: 1720,
+        urbanCoverKm2: 180,
+        informalSlopeCoverKm2: 16,
+        waterBodiesKm2: 410,
+        agricultureKm2: 170,
+        meanRunoffCoefficient: 0.34,
+        averageSlopeDeg: 6,
+        deforestationAccumulatedPercent: 7.0,
+        urbanImperviousRatePercent: 22
+      },
+      {
+        year: 2005,
+        forestCoverKm2: 1590,
+        urbanCoverKm2: 245,
+        informalSlopeCoverKm2: 28,
+        waterBodiesKm2: 430,
+        agricultureKm2: 205,
+        meanRunoffCoefficient: 0.41,
+        averageSlopeDeg: 7,
+        deforestationAccumulatedPercent: 14.1,
+        urbanImperviousRatePercent: 31
+      },
+      {
+        year: 2015,
+        forestCoverKm2: 1450,
+        urbanCoverKm2: 310,
+        informalSlopeCoverKm2: 42,
+        waterBodiesKm2: 435,
+        agricultureKm2: 245,
+        meanRunoffCoefficient: 0.49,
+        averageSlopeDeg: 7,
+        deforestationAccumulatedPercent: 21.6,
+        urbanImperviousRatePercent: 40
+      },
+      {
+        year: 2023,
+        forestCoverKm2: 1310,
+        urbanCoverKm2: 385,
+        informalSlopeCoverKm2: 58,
+        waterBodiesKm2: 440,
+        agricultureKm2: 285,
+        meanRunoffCoefficient: 0.57,
+        averageSlopeDeg: 8,
+        deforestationAccumulatedPercent: 29.2,
+        urbanImperviousRatePercent: 49
+      },
+      {
+        year: 2030,
+        forestCoverKm2: 1190,
+        urbanCoverKm2: 450,
+        informalSlopeCoverKm2: 72,
+        waterBodiesKm2: 442,
+        agricultureKm2: 320,
+        meanRunoffCoefficient: 0.64,
+        averageSlopeDeg: 8,
+        deforestationAccumulatedPercent: 35.7,
+        urbanImperviousRatePercent: 58
+      },
+      {
+        year: 2040,
+        forestCoverKm2: 1040,
+        urbanCoverKm2: 530,
+        informalSlopeCoverKm2: 92,
+        waterBodiesKm2: 445,
+        agricultureKm2: 365,
+        meanRunoffCoefficient: 0.72,
+        averageSlopeDeg: 9,
+        deforestationAccumulatedPercent: 43.8,
+        urbanImperviousRatePercent: 67
+      },
+      {
+        year: 2050,
+        forestCoverKm2: 890,
+        urbanCoverKm2: 615,
+        informalSlopeCoverKm2: 115,
+        waterBodiesKm2: 448,
+        agricultureKm2: 410,
+        meanRunoffCoefficient: 0.80,
+        averageSlopeDeg: 9,
+        deforestationAccumulatedPercent: 51.9,
+        urbanImperviousRatePercent: 76
+      }
+    ],
+    urbanSectors: [
+      {
+        id: 'sector-puerto-ordaz-alta-vista',
+        name: 'Sector Alta Vista & Paseo Caroní',
+        description: 'Centro comercial, financiero y administrativo de Ciudad Guayana fundado sobre mesetas lateríticas estables.',
+        centerCoords: [8.305, -62.730],
+        zoomLevel: 15,
+        terrainType: 'Terraza Tectónica',
+        detectedBuildings: [
+          {
+            id: 'b-pzo-01',
+            name: 'Hospital Uyapar (IVSS)',
+            typeId: 'hospital-infraestructura',
+            x: 45,
+            y: 40,
+            elevationM: 92,
+            slopeDeg: 2,
+            distanceToFaultKm: 8.5,
+            distanceToStreamM: 1200,
+            stories: 5,
+            soilType: 'S1'
+          },
+          {
+            id: 'b-pzo-02',
+            name: 'Torre Corporativa Guayana Plaza',
+            typeId: 'porticos-nd3-sismo',
+            x: 62,
+            y: 50,
+            elevationM: 96,
+            slopeDeg: 1,
+            distanceToFaultKm: 9.0,
+            distanceToStreamM: 1500,
+            stories: 8,
+            soilType: 'S1'
+          }
+        ],
+        suggestions: [
+          {
+            id: 'sug-pzo-01',
+            level: 'Macro',
+            title: 'Monitoreo Sismológico por Carga de Embalses Hidroeléctricos',
+            category: 'Ingeniería Civil',
+            description: 'Red acelerográfica telemétrica en torno a Macagua y Caruachi para registrar sismicidad intra-placa inducida.',
+            priority: 'Recomendada',
+            affectedArea: 'Complejos de Generación Hidroeléctrica del Bajo Caroní',
+            estimatedCostBenefit: 'Protege la columna vertebral eléctrica de Venezuela'
+          }
+        ]
+      },
+      {
+        id: 'sector-san-felix-centro',
+        name: 'Sector San Félix & Fachada del Río Caroní',
+        description: 'Área urbana histórica de alta densidad con asentamientos en terrazas próximas al río Caroní.',
+        centerCoords: [8.350, -62.660],
+        zoomLevel: 15,
+        terrainType: 'Valle Aluvial',
+        detectedBuildings: [
+          {
+            id: 'b-sfx-01',
+            name: 'Liceo General Manuel Piar',
+            typeId: 'mamposteria-confinada',
+            x: 52,
+            y: 48,
+            elevationM: 70,
+            slopeDeg: 3,
+            distanceToFaultKm: 7.2,
+            distanceToStreamM: 400,
+            stories: 3,
+            soilType: 'S2'
+          }
+        ],
+        suggestions: [
+          {
+            id: 'sug-sfx-01',
+            level: 'Micro',
+            title: 'Control de Erosión Costera Fluvial en el Malecón de San Félix',
+            category: 'Mitigación Hidráulica',
+            description: 'Muros de contención con enrocado de protección contra socavación por crecidas estacionales del Caroní y Orinoco.',
+            priority: 'Alta',
+            affectedArea: 'Ribera de San Félix',
+            estimatedCostBenefit: 'Evita colapso de viviendas palafíticas y ribereñas'
+          }
+        ]
+      }
+    ],
+    historicalEvents: [
+      {
+        year: 2018,
+        title: 'Sismo Intra-placa del Oriente Venezolano (Mw 7.3)',
+        type: 'Sismo',
+        impact: 'Sentido con intensidad IV-V en Ciudad Guayana y Ciudad Bolívar; fisuras no estructurales en edificaciones altas.',
+        engineeringLessons:
+          'A pesar de la baja sismicidad histórica regional (Zona 1), las ondas sísmicas de eventos profundos viajan con muy baja atenuación a través del cratón rocoso.'
+      },
+      {
+        year: 2018,
+        title: 'Crecida Histórica Bipontina de los Ríos Orinoco y Caroní',
+        type: 'Inundación',
+        impact: 'Cota del Orinoco superó los 18.05 msnm; anegación de comunidades ribereñas en San Félix y Puerto Ordaz.',
+        engineeringLessons:
+          'La regulación de caudales en los aliviaderos de las presas debe articularse con sistemas de alerta temprana de evacuación urbana.'
+      }
+    ],
+    criticalInfrastructure: {
+      hospitals: 9,
+      civilProtectionStations: 6,
+      fireStations: 6,
+      mainEvacuationArteries: [
+        'Avenida Guayana (Eje estructurante Puerto Ordaz - San Félix)',
+        'Avenida Leopoldo Sucre Figarella',
+        'Autopista Ciudad Guayana - Ciudad Bolívar (Troncal 19)',
+        'Puente Angosturita sobre el Río Caroní'
       ]
     }
   }

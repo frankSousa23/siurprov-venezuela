@@ -896,6 +896,168 @@ const tests: TestItem[] = [
         throw new Error(`El número de vidas salvadas (${retrofittedEval.livesSaved}) debe ser significativamente mayor al modelo colapsado (${unreinforcedEval.livesSaved})`);
       }
     }
+  },
+  // 9. Blindaje MapBiomas 2027 y Resiliencia ante Cortes Eléctricos
+  {
+    id: 'TEST-24',
+    name: 'Persistencia Reactiva y Recuperación Continua ante Cortes Eléctricos',
+    category: 'Estudios e Integridad',
+    run: () => {
+      // 1. Limpieza inicial
+      StudyStorageService.clearCrashRecoverySnapshot();
+      const initial = StudyStorageService.loadCrashRecoverySnapshot();
+      if (initial !== null) {
+        throw new Error('El snapshot de recuperación debe ser nulo tras invocar clearCrashRecoverySnapshot');
+      }
+
+      // 2. Guardado reactivo de snapshot con parámetros y edificación con intento de inyección XSS
+      const testBuildings = [
+        {
+          id: 'b-crash-01',
+          name: '<script>alert("hack")</script>Liceo Libertador',
+          typeId: 'porticos-nd3-sismo',
+          x: 42,
+          y: 55,
+          elevationM: 1600,
+          slopeDeg: 10,
+          distanceToFaultKm: 3.5,
+          distanceToStreamM: 400,
+          stories: 4,
+          soilType: 'S2' as const,
+          isUserPlaced: true,
+          yearConstructed: 2010
+        }
+      ];
+
+      StudyStorageService.saveCrashRecoverySnapshot({
+        activeView: 'simulator',
+        regionId: 'merida-andes',
+        selectedYear: 2030,
+        typologyId: 'porticos-nd3-sismo',
+        soilProfileType: 'S2',
+        userPlacedBuildings: testBuildings
+      });
+
+      // 3. Cargar snapshot y verificar integridad y sanitización
+      const recovered = StudyStorageService.loadCrashRecoverySnapshot();
+      if (!recovered) {
+        throw new Error('Fallo al recuperar snapshot guardado de emergencia tras corte eléctrico');
+      }
+      if (!recovered.isDirty) {
+        throw new Error('El snapshot reactivo debe marcarse con isDirty = true para alertar al usuario');
+      }
+      if (recovered.regionId !== 'merida-andes') {
+        throw new Error(`Región recuperada inconsistente: ${recovered.regionId}`);
+      }
+      if (recovered.selectedYear !== 2030) {
+        throw new Error(`Año recuperado inconsistente: ${recovered.selectedYear}`);
+      }
+      if (recovered.userPlacedBuildings.length !== 1) {
+        throw new Error('La lista de edificaciones recuperadas no coincide en longitud');
+      }
+      // Verificar sanitización XSS
+      if (recovered.userPlacedBuildings[0].name.includes('<script>')) {
+        throw new Error('La persistencia de recuperación no sanitizó el payload XSS en el nombre de la edificación');
+      }
+
+      // 4. Limpieza final de snapshot
+      StudyStorageService.clearCrashRecoverySnapshot();
+      const afterClear = StudyStorageService.loadCrashRecoverySnapshot();
+      if (afterClear !== null) {
+        throw new Error('El snapshot debió quedar vacío tras el descarte de recuperación');
+      }
+    }
+  },
+  {
+    id: 'TEST-25',
+    name: 'Generación de Memorias Técnicas e Integridad de Series Multitemporales MapBiomas (1985–2050)',
+    category: 'Estudios e Integridad',
+    run: () => {
+      // 1. Verificar la cobertura temporal completa en las cuatro regiones clave
+      const targetRegionIds = ['merida-andes', 'sucre-cariaco', 'zulia-maracaibo', 'guayana-caroni'];
+      const requiredYears = [1985, 1995, 2005, 2015, 2023, 2030, 2040, 2050];
+
+      for (const regId of targetRegionIds) {
+        const region = VENEZUELA_REGIONS.find((r) => r.id === regId);
+        if (!region) {
+          throw new Error(`Región estratégica ${regId} no encontrada en catálogo VENEZUELA_REGIONS`);
+        }
+
+        if (!region.mapBiomasTimeSeries || region.mapBiomasTimeSeries.length < 8) {
+          throw new Error(
+            `La región ${regId} debe contener al menos 8 horizontes temporales MapBiomas (posee ${region.mapBiomasTimeSeries?.length || 0})`
+          );
+        }
+
+        const presentYears = region.mapBiomasTimeSeries.map((t) => t.year);
+        for (const yr of requiredYears) {
+          if (!presentYears.includes(yr)) {
+            throw new Error(`La región ${regId} carece del horizonte temporal obligatorio ${yr}`);
+          }
+        }
+
+        // Validar coherencia física de coeficientes y deforestación
+        for (const t of region.mapBiomasTimeSeries) {
+          if (t.meanRunoffCoefficient < 0.20 || t.meanRunoffCoefficient > 1.0) {
+            throw new Error(
+              `Coeficiente de escorrentía C anómalo (${t.meanRunoffCoefficient}) en ${regId} (${t.year})`
+            );
+          }
+          if (t.deforestationAccumulatedPercent < 0 || t.deforestationAccumulatedPercent > 100) {
+            throw new Error(
+              `Porcentaje de deforestación fuera de rango (${t.deforestationAccumulatedPercent}%) en ${regId}`
+            );
+          }
+        }
+      }
+
+      // 2. Generación pura y validación estructural del informe técnico (generateTechnicalReport)
+      const testRegion = VENEZUELA_REGIONS.find((r) => r.id === 'merida-andes')!;
+      const testTypology = BUILDING_TYPOLOGIES.find((t) => t.id === 'porticos-nd3-sismo')!;
+      const testSoil = SOIL_PROFILES.S2;
+      const testScenario = {
+        earthquake: { enabled: true, pgaG: 0.35, magnitudeMw: 7.2, depthKm: 12, durationSeconds: 40, distanceToFaultKm: 4 },
+        debrisFlow: { enabled: true, rainfallAccumulation24hMm: 120, soilSaturationPercent: 70, debrisVelocityMs: 5.0, debrisDepthM: 1.2, densityKgM3: 1900, boulderImpactSizeM: 0.8 },
+        flood: { enabled: false, waterLevelM: 0, flowVelocityMs: 0, durationHours: 0, soilSaturationIncrease: 0 },
+        wind: { enabled: false, speedKmh: 40, gustFactor: 1.1 },
+        slope: { enabled: true, angleDeg: 30, cohesionKpa: 22, internalFrictionAngleDeg: 28 }
+      };
+      const simResult = StructuralSimulationEngine.runSimulation(testRegion, testTypology, testSoil, testScenario, 2023);
+
+      const report = StudyStorageService.generateTechnicalReport({
+        region: testRegion,
+        typology: testTypology,
+        soilProfile: testSoil,
+        scenario: testScenario,
+        simulationResult: simResult,
+        selectedYear: 2023
+      });
+
+      // Validar metadatos y citas en Markdown
+      if (!report.markdown.includes('SIURPROV')) {
+        throw new Error('El informe técnico en Markdown no contiene el encabezado de SIURPROV');
+      }
+      if (!report.markdown.includes('COVENIN 1756')) {
+        throw new Error('El informe técnico carece de referencia explícita a la norma COVENIN 1756');
+      }
+      if (!report.markdown.includes('MapBiomas Venezuela') || !report.markdown.includes('RAISG')) {
+        throw new Error('El informe técnico no cita formalmente a MapBiomas Venezuela ni a RAISG');
+      }
+      if (!report.markdown.includes('Frank Sousa')) {
+        throw new Error('El informe técnico no incluye la atribución de autoría al desarrollador');
+      }
+
+      // Validar resumen tabular
+      if (report.summaryTable.t1 <= 0 || isNaN(report.summaryTable.t1)) {
+        throw new Error(`Período fundamental T1 anómalo en resumen tabular: ${report.summaryTable.t1}`);
+      }
+      if (report.summaryTable.v0Kn <= 0) {
+        throw new Error(`Cortante basal V0 no calculado en resumen tabular: ${report.summaryTable.v0Kn}`);
+      }
+      if (report.mapBiomasTransitions.length !== testRegion.mapBiomasTimeSeries.length) {
+        throw new Error('La matriz de transiciones no coincide en longitud con la serie temporal regional');
+      }
+    }
   }
 ];
 
